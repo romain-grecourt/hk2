@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2007-2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007-2016 Oracle and/or its affiliates. All rights reserved.
  *
  * The contents of this file are subject to the terms of either the GNU
  * General Public License Version 2 only ("GPL") or the Common Development
@@ -45,7 +45,6 @@ import com.sun.enterprise.module.common_impl.AbstractFactory;
 import com.sun.enterprise.module.common_impl.ModuleId;
 import com.sun.enterprise.module.ModuleDefinition;
 import org.osgi.framework.BundleContext;
-
 import java.util.logging.Level;
 
 /**
@@ -53,7 +52,7 @@ import java.util.logging.Level;
  */
 public class OSGiFactoryImpl extends AbstractFactory {
 
-    private BundleContext ctx;
+    private final BundleContext ctx;
 
     public static synchronized void initialize(BundleContext ctx) {
         if (Instance != null) {
@@ -68,18 +67,22 @@ public class OSGiFactoryImpl extends AbstractFactory {
         this.ctx = ctx;
     }
 
+    @Override
     public AbstractOSGiModulesRegistryImpl createModulesRegistry() {
-        String val = ctx.getProperty(Constants.OBR_ENABLED);
-        return (val != null && Boolean.valueOf(val)) ? new OSGiObrModulesRegistryImpl(ctx) : new OSGiModulesRegistryImpl(ctx);
+        String obrEnabled = ctx.getProperty(Constants.OBR_ENABLED);
+        if (obrEnabled != null && Boolean.valueOf(obrEnabled)) {
+            return new OSGiObrModulesRegistryImpl(ctx);
+        }
+        return new OSGiModulesRegistryImpl(ctx);
     }
 
-    public ModuleId createModuleId(String name, String version)
-    {
+    @Override
+    public ModuleId createModuleId(String name, String version) {
         return new OSGiModuleId(name, version);
     }
 
-    public ModuleId createModuleId(ModuleDefinition md)
-    {
+    @Override
+    public ModuleId createModuleId(ModuleDefinition md) {
         return new OSGiModuleId(md);
     }
 }

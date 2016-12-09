@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2007-2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007-2016 Oracle and/or its affiliates. All rights reserved.
  *
  * The contents of this file are subject to the terms of either the GNU
  * General Public License Version 2 only ("GPL") or the Common Development
@@ -41,120 +41,24 @@
 package com.sun.enterprise.module.single;
 
 import com.sun.enterprise.module.*;
-
-import java.util.List;
-import java.util.ArrayList;
-import java.io.PrintStream;
+import com.sun.enterprise.module.common_impl.EmptyModule;
 
 /**
  * Creates a Module implementation based on a single class loader
  *
  * @author Jerome Dochez
  */
-public class ProxyModule implements Module {
+public class ProxyModule extends EmptyModule {
 
     final ClassLoader classLoader;
-    final ModuleDefinition moduleDef;
-    final ModulesRegistry modulesRegistry;
 
     public ProxyModule(ModulesRegistry registry, ModuleDefinition moduleDef, ClassLoader cl) {
+        super(moduleDef,registry);
         this.classLoader = cl;
-        this.moduleDef = moduleDef;
-        this.modulesRegistry = registry;
     }
 
-    public ModuleDefinition getModuleDefinition() {
-        return moduleDef;
-    }
-
-    public String getName() {
-        return moduleDef.getName();
-    }
-
-    public ModulesRegistry getRegistry() {
-        return modulesRegistry;
-    }
-
-    public ModuleState getState() {
-        return ModuleState.READY;
-    }
-
-    public void resolve() throws ResolveError {
-
-    }
-
-    public void start() throws ResolveError {
-
-    }
-
-    public boolean stop() {
-        return false;
-    }
-
-    public void detach() {
-    }
-
-    public void refresh() {
-    }
-
-    public ModuleMetadata getMetadata() {
-        return moduleDef.getMetadata();
-    }
-
-    public void addListener(ModuleChangeListener listener) {
-        //To change body of implemented methods use File | Settings | File Templates.
-    }
-
-    public void removeListener(ModuleChangeListener listener) {
-        //To change body of implemented methods use File | Settings | File Templates.
-    }
-
+    @Override
     public ClassLoader getClassLoader() {
         return classLoader;
-    }
-
-    public List<Module> getImports() {
-        return new ArrayList<Module>();
-    }
-
-    public void addImport(Module module) {
-        //To change body of implemented methods use File | Settings | File Templates.
-    }
-
-    public Module addImport(ModuleDependency dependency) {
-        throw new UnsupportedOperationException("Inports cannot be added dynamically to static modules");
-    }
-
-    public boolean isShared() {
-        return false;
-    }
-
-    public boolean isSticky() {
-        return true;
-    }
-
-    public void setSticky(boolean sticky) {
-        if (!sticky)
-            throw new UnsupportedOperationException("Stickyness cannot be changed for static modules");
-    }
-
-    public <T> Iterable<Class<? extends T>> getProvidersClass(Class<T> serviceClass) {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
-    }
-
-    public Iterable<Class> getProvidersClass(String name) {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
-    }
-
-    public boolean hasProvider(Class serviceClass) {
-        return false;  //To change body of implemented methods use File | Settings | File Templates.
-    }
-
-    public void dumpState(PrintStream writer) {
-        //To change body of implemented methods use File | Settings | File Templates.
-    }
-
-    public void uninstall() {
-        //To change body of implemented methods use File | Settings | File Templates.
     }
 }

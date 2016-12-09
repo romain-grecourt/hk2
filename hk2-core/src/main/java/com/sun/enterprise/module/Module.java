@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2007-2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007-2016 Oracle and/or its affiliates. All rights reserved.
  *
  * The contents of this file are subject to the terms of either the GNU
  * General Public License Version 2 only ("GPL") or the Common Development
@@ -55,6 +55,7 @@ public interface Module {
 
     /**
      * Short-cut for {@code getModuleDefinition().getName()}.
+     * @return
      */
     String getName();
 
@@ -129,6 +130,7 @@ public interface Module {
 
     /**
      * Gets the metadata of this module.
+     * @return
      */
     ModuleMetadata getMetadata();
 
@@ -173,9 +175,9 @@ public interface Module {
     void addImport(Module module);
 
     /**
-     * Create and add a new module to this module's list of
-     * imports.
+     * Create and add a new module to this module's list of imports.
      * @param dependency new module's definition
+     * @return
      */
     Module addImport(ModuleDependency dependency);
 
@@ -207,6 +209,8 @@ public interface Module {
 
     /**
      * Returns true if this module has any provider for the given service class.
+     * @param serviceClass
+     * @return
      */
     boolean hasProvider(Class serviceClass);
 

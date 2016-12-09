@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2011-2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011-2016 Oracle and/or its affiliates. All rights reserved.
  *
  * The contents of this file are subject to the terms of either the GNU
  * General Public License Version 2 only ("GPL") or the Common Development
@@ -45,12 +45,10 @@ import com.sun.enterprise.module.ModuleDefinition;
 import com.sun.enterprise.module.ModuleState;
 import com.sun.enterprise.module.ResolveError;
 import com.sun.enterprise.module.bootstrap.BootException;
-
 import org.glassfish.hk2.api.ActiveDescriptor;
 import org.glassfish.hk2.api.PopulatorPostProcessor;
 import org.glassfish.hk2.api.ServiceLocator;
 import org.osgi.framework.Bundle;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -178,7 +176,7 @@ public class OSGiObrModuleImpl extends OSGiModuleImpl {
     public String toString() {
         StringBuilder sb = new StringBuilder("OSGiObrModuleImpl::");
         if (isUninitialized()) {
-            sb.append("Name: [" + getName() + "], State: [" + getState() + "]");
+            sb.append("Name: [").append(getName()).append("], State: [").append(getState()).append("]");
             return sb.toString();
         }
         return sb.append(super.toString()).toString();

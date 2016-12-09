@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2007-2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007-2016 Oracle and/or its affiliates. All rights reserved.
  *
  * The contents of this file are subject to the terms of either the GNU
  * General Public License Version 2 only ("GPL") or the Common Development
@@ -42,12 +42,9 @@ package org.jvnet.hk2.osgiadapter;
 
 import static org.jvnet.hk2.osgiadapter.BundleEventType.valueOf;
 import static org.jvnet.hk2.osgiadapter.Logger.logger;
-
-import java.io.File;
 import java.net.URI;
 import java.util.*;
 import java.util.logging.Level;
-
 import org.glassfish.hk2.api.Descriptor;
 import org.glassfish.hk2.api.DescriptorFileFinder;
 import org.glassfish.hk2.api.DynamicConfiguration;
@@ -55,7 +52,6 @@ import org.glassfish.hk2.api.DynamicConfigurationService;
 import org.glassfish.hk2.api.PopulatorPostProcessor;
 import org.glassfish.hk2.api.ServiceLocator;
 import org.glassfish.hk2.utilities.AbstractActiveDescriptor;
-import org.glassfish.hk2.utilities.Binder;
 import org.glassfish.hk2.utilities.BuilderHelper;
 import org.osgi.framework.BundleActivator;
 import org.osgi.framework.BundleContext;
@@ -66,35 +62,28 @@ import org.osgi.framework.ServiceRegistration;
 import org.osgi.framework.SynchronousBundleListener;
 import org.osgi.util.tracker.ServiceTracker;
 import org.osgi.util.tracker.ServiceTrackerCustomizer;
-
 import com.sun.enterprise.module.ModulesRegistry;
+import com.sun.enterprise.module.Repository;
 import com.sun.enterprise.module.bootstrap.BootException;
 import com.sun.enterprise.module.bootstrap.Main;
 import com.sun.enterprise.module.bootstrap.ModuleStartup;
 import com.sun.enterprise.module.bootstrap.StartupContext;
-import com.sun.enterprise.module.common_impl.AbstractFactory;
 import com.sun.enterprise.module.common_impl.TracingUtilities;
 
 /**
  * {@link org.osgi.framework.BundleActivator} that launches a Habitat.
+ *
  * A habitat is a collection of inhabitants, which are configured in a certain way.
  * So, there is a one-to-one mapping between habitat and configuration file used to configure the inhabitants.
  *
  * @author Sanjeeb.Sahoo@Sun.COM
  */
-public class HK2Main extends Main implements
-        BundleActivator,
-        SynchronousBundleListener {
+public class HK2Main extends Main implements  BundleActivator, SynchronousBundleListener {
 
-	// Not sure where this belongs now:
-	public final String DEFAULT_NAME = "default";
-	 
     // TODO(Sahoo): Change to use ServiceTracker for all ServiceRegistrations
-
     private BundleContext ctx;
-
     private ServiceRegistration mrReg;
-    private Map<ServiceLocator, HabitatInfo> habitatInfos = new HashMap<ServiceLocator, HabitatInfo>();
+    private final Map<ServiceLocator, HabitatInfo> habitatInfos = new HashMap<ServiceLocator, HabitatInfo>();
 
     /**
      * Stores additional artifacts corresponding to each Habitat created by us.
@@ -103,10 +92,8 @@ public class HK2Main extends Main implements
         private ServiceLocator serviceLocator;
         private ServiceRegistration habitatRegistration;
         private ServiceTracker osgiServiceTracker;
-        private ServiceRegistration moduleStartupRegistration;
     }
 
-    
     @Override
     public ServiceLocator createServiceLocator(ModulesRegistry mr,
                                                StartupContext context,
@@ -115,10 +102,8 @@ public class HK2Main extends Main implements
             throws BootException {
 
         HabitatInfo habitatInfo = new HabitatInfo();
-        
         habitatInfo.serviceLocator = super.createServiceLocator(mr, context, postProcessors, descriptorFileFinder);
         createHK2ServiceTracker(habitatInfo);
-        // register ServiceLocator as an OSGi service
         habitatInfo.habitatRegistration = ctx.registerService(ServiceLocator.class.getName(), habitatInfo.serviceLocator, context.getArguments());
         habitatInfos.put(habitatInfo.serviceLocator, habitatInfo);
         return habitatInfo.serviceLocator;
@@ -133,9 +118,6 @@ public class HK2Main extends Main implements
         // run code in the reverse order
         habitatInfo.habitatRegistration.unregister();
         stopHK2ServiceTracker(habitatInfo);
-        // AMX i shaving trouble if we release inhabitants. So temporarily disable this.
-        // habitat.release();
-        habitatInfo = null;
         habitatInfos.remove(serviceLocator);
     }
 
@@ -157,25 +139,52 @@ public class HK2Main extends Main implements
         }
     }
 
+    private static List<URI> asList(String uris) {
+        List<URI> repos;
+        if (uris != null) {
+            repos = new ArrayList<URI>();
+            for (String s : uris.split("\\s")) {
+                repos.add(URI.create(s));
+            }
+        } else {
+            repos = Collections.EMPTY_LIST;
+        }
+        return repos;
+    }
+
+    @Override
     public void start(BundleContext context) throws Exception {
         this.ctx = context;
-        
         logger.entering("HK2Main", "start", new Object[]{context});
 
-//        ctx.addBundleListener(this); // used for debugging purpose
-
         OSGiFactoryImpl.initialize(ctx);
+        ModulesRegistry mr = OSGiFactoryImpl.getInstance().createModulesRegistry();
 
-        ModulesRegistry mr = createModulesRegistry();
-        if (TracingUtilities.isEnabled())
+        // hk2 repositories
+        for(URI uri : asList(ctx.getProperty(Constants.HK2_REPOSITORIES))){
+            OSGiRepositoryFactory.initialize(uri);
+            Repository repo = OSGiRepositoryFactory.getInstance().createRepository();
+            mr.addRepository(repo);
+        }
+
+        // obr repositories
+        List<URI> obrUris = asList(ctx.getProperty(Constants.OBR_REPOSITORIES));
+        if (!obrUris.isEmpty() && mr instanceof OSGiObrModulesRegistryImpl) {
+            for (URI uri : asList(ctx.getProperty(Constants.OBR_REPOSITORIES))) {
+                OSGiObrModulesRegistryImpl mr1 = (OSGiObrModulesRegistryImpl) mr;
+                mr1.addObr(uri);
+            }
+        }
+        mrReg = ctx.registerService(ModulesRegistry.class.getName(), mr, null);
+        if (TracingUtilities.isEnabled()) {
             registerBundleDumper(mr);
-
+        }
         ctx.registerService(Main.class.getName(), this, null);
     }
 
     private void registerBundleDumper(final ModulesRegistry mr) {
-
         ctx.addBundleListener(new SynchronousBundleListener() {
+            @Override
             public void bundleChanged(final BundleEvent event) {
                 switch (event.getType()) {
                     case BundleEvent.RESOLVED:
@@ -189,7 +198,6 @@ public class HK2Main extends Main implements
                                     }
                                 });
                         break;
-
                     case BundleEvent.STARTED:
                         TracingUtilities.traceStarted(mr,
                                 event.getBundle().getBundleId(),
@@ -200,39 +208,10 @@ public class HK2Main extends Main implements
                                         return event.getBundle().loadClass(type);
                                     }
                                 });
-
                         break;
                 }
             }
         });
-    }
-
-    protected ModulesRegistry createModulesRegistry() throws Exception {
-        assert (mrReg == null);
-        ModulesRegistry mr = AbstractFactory.getInstance().createModulesRegistry();
-
-        String hk2RepositoryUris = ctx.getProperty(Constants.HK2_REPOSITORIES);
-
-        if (hk2RepositoryUris != null) {
-            for (String s : hk2RepositoryUris.split("\\s")) {
-                URI repoURI = URI.create(s);
-                File repoDir = new File(repoURI);
-                OSGiDirectoryBasedRepository repo = new OSGiDirectoryBasedRepository(repoDir.getAbsolutePath(), repoDir);
-                repo.initialize();
-                mr.addRepository(repo);
-            }
-        }
-        String osgiRepositoryUris = ctx.getProperty(Constants.OBR_REPOSITORIES);
-        if (osgiRepositoryUris != null && mr instanceof OSGiObrModulesRegistryImpl) {
-            OSGiObrModulesRegistryImpl mr1 = (OSGiObrModulesRegistryImpl) mr;
-            for (String s : osgiRepositoryUris.split("\\s")) {
-                mr1.addObr(URI.create(s));
-            }
-        }
-        
-        mrReg = ctx.registerService(ModulesRegistry.class.getName(), mr, null);
-        
-        return mr;
     }
 
     @Override
@@ -240,20 +219,19 @@ public class HK2Main extends Main implements
         // OSGi doesn't have this feature, so ignore it for now.
     }
 
+    @Override
     public void stop(BundleContext context) throws Exception {
         // When OSGi framework shuts down, it shuts down all started bundles, but the order is unspecified.
         // So, since we are going to shutdown the registry, it's better that we stop startup service just incase it is still running.
         // Similarly, we can release the habitat.
-
         // Execute code in reverse order w.r.t. start()
-
         // Take a copy to avoid ConcurrentModificationException. This will happen as destroHabitat removes the entry.
         for (HabitatInfo habitatInfo : new ArrayList<HabitatInfo>(habitatInfos.values())) {
             ModuleStartup startupService =
                     habitatInfo.serviceLocator.getService(ModuleStartup.class, DEFAULT_NAME);
             if (startupService != null) {
                 try {
-                    logger.info("Stopping " + startupService);
+                    logger.log(Level.INFO, "Stopping {0}", startupService);
                     startupService.stop();
                 } catch (Exception e) {
                     logger.log(Level.WARNING, "HK2Main:stop():Exception while stopping ModuleStartup service.", e);
@@ -261,16 +239,13 @@ public class HK2Main extends Main implements
             }
             destroyHabitat(habitatInfo.serviceLocator);
         }
-
         ModulesRegistry mr = (ModulesRegistry) ctx.getService(mrReg.getReference());
         if (mr != null) {
             mr.shutdown();
-            mr = null;
         }
-//        ctx.removeBundleListener(this); // used for debugging only. see start method
-
     }
 
+    @Override
     public void bundleChanged(BundleEvent event) {
         logger.logp(Level.FINE, "HK2Main", "bundleChanged",
                 "source= {0}, type= {1}", new Object[]{event.getSource(),
@@ -289,6 +264,7 @@ public class HK2Main extends Main implements
         /* (non-Javadoc)
          * @see org.osgi.framework.Filter#match(java.util.Dictionary)
          */
+        @Override
         public boolean match(Dictionary dictionary) {
             throw new RuntimeException("Unexpected method called");
         }
@@ -299,14 +275,16 @@ public class HK2Main extends Main implements
         public boolean matches(Map<String, ?> map) {
             throw new RuntimeException("Unexpected method called");
         }
-        
+
         /* (non-Javadoc)
          * @see org.osgi.framework.Filter#matchCase(java.util.Dictionary)
          */
+        @Override
         public boolean matchCase(Dictionary dictionary) {
             throw new RuntimeException("Unexpected method called");
         }
-        
+
+        @Override
         public String toString() {
             return "(objectClass=*)";
         }
@@ -319,9 +297,10 @@ public class HK2Main extends Main implements
             this.serviceLocator = serviceLocator;
         }
 
+        @Override
         public Object addingService(final ServiceReference reference) {
             final Object object = ctx.getService(reference);
-            
+
             if (object == null) {
                 // service obuject can be null if the service is created using a factory and the factory fails to
                 // create for whatever reason. In such a case, gracefully handle the situation instead of us failing.
@@ -331,13 +310,11 @@ public class HK2Main extends Main implements
                                 "as the service object could not be obtained.", new Object[]{reference});
                 return null;
             }
-            
+
             DynamicConfigurationService dcs = serviceLocator.getService(DynamicConfigurationService.class);
             DynamicConfiguration config = dcs.createDynamicConfiguration();
-
             AbstractActiveDescriptor<Object> descriptor = BuilderHelper.createConstantDescriptor(object);
-            
-            
+
             // let's get the list of implemented contracts
             String[] contractNames = (String[]) reference.getProperty("objectclass");
             if (contractNames != null && contractNames.length > 0) {
@@ -349,62 +326,50 @@ public class HK2Main extends Main implements
                         // we may need to find a better way to get a potential name.
                         name = (String) reference.getProperty("org.springframework.osgi.bean.name");
                     }
-                      
                     try {
-                        final Class<?> contractType =
-                                Class.forName(contractName, false, object.getClass().getClassLoader());
+                        final Class<?> contractType = Class.forName(
+                                contractName, false, object.getClass().getClassLoader());
                         descriptor.addContractType(contractType);
-						
-						if (name != null)
-							descriptor.setName(name);
-
-	                    logger.logp(Level.FINE, "HK2Main$HK2ServiceTrackerCustomizer",
-	                            "addingService", "registering service = {0}, contract = {1}, name = {2}", new Object[]{
-	                                    object, contractName, name});
-					} catch (ClassNotFoundException e) {
-						logger.log(Level.SEVERE, "Cannot resolve contract " + contractName, e);
-					}
-                    
+                        if (name != null) {
+                            descriptor.setName(name);
+                        }
+                        logger.logp(Level.FINE, "HK2Main$HK2ServiceTrackerCustomizer",
+                                "addingService", "registering service = {0}, contract = {1}, name = {2}", new Object[]{
+                                    object, contractName, name});
+                    } catch (ClassNotFoundException e) {
+                        logger.log(Level.SEVERE, "Cannot resolve contract " + contractName, e);
+                    }
                 }
-                
             } else {
                 // this service does not implement a specific contract, let's register it by its type.
                 logger.logp(Level.FINE, "HK2Main$HK2ServiceTrackerCustomizer",
                         "addingService", "registering service = {0}", object);
             }
-            
             config.addActiveDescriptor(descriptor);
-
             config.commit();
-
             return descriptor;
         }
 
+        @Override
         public void modifiedService(ServiceReference reference, Object service) {
         }
 
+        @Override
         public void removedService(ServiceReference reference, final Object service) {
-
             DynamicConfigurationService dcs = serviceLocator.getService(DynamicConfigurationService.class);
             DynamicConfiguration config = dcs.createDynamicConfiguration();
-            
             org.glassfish.hk2.api.Filter filter = new org.glassfish.hk2.api.Filter() {
-
                 @Override
                 public boolean matches(Descriptor d) {
                     return d.equals(service); // addingServices() returns the descriptor
                 }
-
             };
-
             config.addUnbindFilter(filter);
-
             config.commit();
         }
     }
-    
-	public HK2Main() {
-		super();
-	}
 
+    public HK2Main() {
+        super();
+    }
 }

@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2007-2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007-2016 Oracle and/or its affiliates. All rights reserved.
  *
  * The contents of this file are subject to the terms of either the GNU
  * General Public License Version 2 only ("GPL") or the Common Development
@@ -41,11 +41,9 @@
 package org.jvnet.hk2.osgiadapter;
 
 import static org.jvnet.hk2.osgiadapter.Logger.logger;
-
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.logging.Level;
-
 import org.glassfish.hk2.api.HK2Loader;
 import org.glassfish.hk2.api.MultiException;
 import org.glassfish.hk2.api.PopulatorPostProcessor;
@@ -59,24 +57,23 @@ import org.glassfish.hk2.utilities.DescriptorImpl;
  *
  */
 public class OsgiPopulatorPostProcessor implements
-		PopulatorPostProcessor {
-	
-	public static final String BUNDLE_VERSION = "Bundle-Version";
-	public static final String BUNDLE_SYMBOLIC_NAME = "Bundle-SymbolicName";
-	private final OSGiModuleImpl osgiModule;
-	private final HK2Loader loader;
+        PopulatorPostProcessor {
 
-	OsgiPopulatorPostProcessor(OSGiModuleImpl paramOsgiModule) {
-		this.osgiModule = paramOsgiModule;
-		
-		loader = new HK2Loader() {
+    public static final String BUNDLE_VERSION = "Bundle-Version";
+    public static final String BUNDLE_SYMBOLIC_NAME = "Bundle-SymbolicName";
+    private final OSGiModuleImpl osgiModule;
+    private final HK2Loader loader;
 
-            @SuppressWarnings({ "unchecked", "rawtypes" })
+    OsgiPopulatorPostProcessor(OSGiModuleImpl paramOsgiModule) {
+        this.osgiModule = paramOsgiModule;
+        loader = new HK2Loader() {
+            @SuppressWarnings({"unchecked", "rawtypes"})
             @Override
             public Class<?> loadClass(final String className)
                     throws MultiException {
                 osgiModule.start();
                 return (Class<?>) AccessController.doPrivileged(new PrivilegedAction() {
+                    @Override
                     public java.lang.Object run() {
                         try {
                             return osgiModule.getBundle().loadClass(className);
@@ -89,24 +86,21 @@ public class OsgiPopulatorPostProcessor implements
                         }
                     }
                 });
-
             }
-            
+
+            @Override
             public String toString() {
-                return "OsgiPopulatorPostProcessor.HK2Loader(" +
-                        osgiModule + "," + System.identityHashCode(this) + ")";
+                return "OsgiPopulatorPostProcessor.HK2Loader("
+                        + osgiModule + "," + System.identityHashCode(this) + ")";
             }
-            
         };
-	}
+    }
 
-	@Override
-	public DescriptorImpl process(ServiceLocator serviceLocator, DescriptorImpl descriptorImpl) {
-        
-		descriptorImpl.setLoader(loader);
-		
-		descriptorImpl.addMetadata(BUNDLE_SYMBOLIC_NAME,osgiModule.getBundle().getSymbolicName());
-		descriptorImpl.addMetadata(BUNDLE_VERSION, osgiModule.getBundle().getVersion().toString());
-		return descriptorImpl;
-	}	
+    @Override
+    public DescriptorImpl process(ServiceLocator serviceLocator, DescriptorImpl descriptorImpl) {
+        descriptorImpl.setLoader(loader);
+        descriptorImpl.addMetadata(BUNDLE_SYMBOLIC_NAME, osgiModule.getBundle().getSymbolicName());
+        descriptorImpl.addMetadata(BUNDLE_VERSION, osgiModule.getBundle().getVersion().toString());
+        return descriptorImpl;
+    }
 }

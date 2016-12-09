@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2012-2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012-2016 Oracle and/or its affiliates. All rights reserved.
  *
  * The contents of this file are subject to the terms of either the GNU
  * General Public License Version 2 only ("GPL") or the Common Development
@@ -71,9 +71,9 @@ public abstract class AbstractOSGiModulesRegistryImpl extends AbstractModulesReg
      */
     BundleContext bctx;
     protected PackageAdmin pa;
-    private Map<ModuleChangeListener, BundleListener> moduleChangeListeners =
+    private final Map<ModuleChangeListener, BundleListener> moduleChangeListeners =
             new HashMap<ModuleChangeListener, BundleListener>();
-    private Map<ModuleLifecycleListener, BundleListener> moduleLifecycleListeners =
+    private final Map<ModuleLifecycleListener, BundleListener> moduleLifecycleListeners =
             new HashMap<ModuleLifecycleListener, BundleListener>();
 
     protected AbstractOSGiModulesRegistryImpl(BundleContext bctx) {
@@ -99,43 +99,36 @@ public abstract class AbstractOSGiModulesRegistryImpl extends AbstractModulesReg
         // something like Eclipse.
     }
 
+    @Override
     public List<ActiveDescriptor> parseInhabitants(
             Module module, String name, ServiceLocator serviceLocator, List<PopulatorPostProcessor> postProcessors)
             throws IOException, BootException {
 
+        if(!(module instanceof OSGiModuleImpl)){
+            return Collections.EMPTY_LIST;
+        }
         OSGiModuleImpl osgiModuleImpl = (OSGiModuleImpl) module;
-
         List<ActiveDescriptor> activeDescriptors;
-
         Map<String, List<Descriptor>> descriptorMap = module.getModuleDefinition().getMetadata().getDescriptors();
 
         List<Descriptor> descriptors = descriptorMap.get(name);
-
         if (descriptors == null) {
             activeDescriptors = osgiModuleImpl.parseInhabitants(name, serviceLocator, postProcessors);
-
             if (activeDescriptors != null) {
-
                 // use the copy constructor to create (nonactive) descriptor for serialization into the cache
                 descriptors = new ArrayList<Descriptor>();
                 for (Descriptor d : activeDescriptors) {
                     descriptors.add(new DescriptorImpl(d));
                 }
-
                 module.getModuleDefinition().getMetadata().addDescriptors(name, descriptors);
-
             }
         } else {
             activeDescriptors = new ArrayList<ActiveDescriptor>();
-
             DynamicConfiguration dcs = createDynamicConfiguration(serviceLocator);
             for (Descriptor descriptor : descriptors) {
-                
                 DescriptorImpl di = (descriptor instanceof DescriptorImpl) ? (DescriptorImpl) descriptor : new DescriptorImpl(descriptor) ;
-
                 // set the hk2loader
                 DescriptorImpl descriptorImpl = new OsgiPopulatorPostProcessor(osgiModuleImpl).process(serviceLocator, di);
-
                 if (descriptorImpl != null) {
                     activeDescriptors.add(dcs.bind(descriptorImpl, false));
                 }
@@ -148,10 +141,12 @@ public abstract class AbstractOSGiModulesRegistryImpl extends AbstractModulesReg
 
     }
 
+    @Override
     public ModulesRegistry createChild() {
         throw new UnsupportedOperationException("Not Yet Implemented"); // TODO(Sahoo)
     }
 
+    @Override
     public synchronized void detachAll() {
         for (Module m : modules.values()) {
             m.detach();
@@ -163,6 +158,7 @@ public abstract class AbstractOSGiModulesRegistryImpl extends AbstractModulesReg
      * associated with this registry.
      * @param parent parent class loader
      */
+    @Override
     public void setParentClassLoader(ClassLoader parent) {
         throw new UnsupportedOperationException("This method can't be implemented in OSGi environment");
     }
@@ -172,6 +168,7 @@ public abstract class AbstractOSGiModulesRegistryImpl extends AbstractModulesReg
      * by modules associated with this registry.
      * @return the parent classloader
      */
+    @Override
     public ClassLoader getParentClassLoader() {
         return Bundle.class.getClassLoader();
     }
@@ -188,6 +185,7 @@ public abstract class AbstractOSGiModulesRegistryImpl extends AbstractModulesReg
      * @throws com.sun.enterprise.module.ResolveError if one of the provided module
      *         definition cannot be resolved
      */
+    @Override
     public ClassLoader getModulesClassLoader(final ClassLoader parent,
                                              Collection<ModuleDefinition> mds,
                                              URL[] urls) throws ResolveError {
@@ -224,7 +222,7 @@ public abstract class AbstractOSGiModulesRegistryImpl extends AbstractModulesReg
                         try {
                             urls[i] = uris[i].toURL();
                         } catch (MalformedURLException e) {
-                            logger.warning("Exception " + e + " while converting " + uris[i] + " to URL");
+                            logger.log(Level.WARNING, "Exception {0} while converting {1} to URL", new Object[]{e, uris[i]});
                         }
                     }
                     result.addAll(Arrays.asList(urls));
@@ -280,12 +278,14 @@ public abstract class AbstractOSGiModulesRegistryImpl extends AbstractModulesReg
      * @throws ResolveError if one of the provided module
      *         definition cannot be resolved
      */
+    @Override
     public ClassLoader getModulesClassLoader(ClassLoader parent,
                                              Collection<ModuleDefinition> defs)
         throws ResolveError {
         return getModulesClassLoader(parent, defs, null);
     }
 
+    @Override
     public Module find(Class clazz) {
         Bundle b = pa.getBundle(clazz);
         if (b!=null) {
@@ -300,6 +300,7 @@ public abstract class AbstractOSGiModulesRegistryImpl extends AbstractModulesReg
 
     public void addModuleChangeListener(final ModuleChangeListener listener, final OSGiModuleImpl module) {
         BundleListener bundleListener = new BundleListener() {
+            @Override
             public void bundleChanged(BundleEvent event) {
                 if ((event.getBundle() == module.getBundle()) &&
                         ((event.getType() & BundleEvent.UPDATED) == BundleEvent.UPDATED)) {
@@ -320,9 +321,11 @@ public abstract class AbstractOSGiModulesRegistryImpl extends AbstractModulesReg
         return false;
     }
 
+    @Override
     public void register(final ModuleLifecycleListener listener) {
         // This is purposefully made an asynchronous bundle listener
         BundleListener bundleListener = new BundleListener() {
+            @Override
             public void bundleChanged(BundleEvent event) {
                 switch (event.getType()) {
                     case BundleEvent.INSTALLED:
@@ -347,6 +350,7 @@ public abstract class AbstractOSGiModulesRegistryImpl extends AbstractModulesReg
         moduleLifecycleListeners.put(listener,  bundleListener);
     }
 
+    @Override
     public void unregister(ModuleLifecycleListener listener) {
         BundleListener bundleListener = moduleLifecycleListeners.remove(listener);
         if (bundleListener!=null) {
@@ -357,38 +361,38 @@ public abstract class AbstractOSGiModulesRegistryImpl extends AbstractModulesReg
     /*package*/ Module getModule(Bundle bundle) {
         return modules.get(new OSGiModuleId(bundle));
     }
-    
+
+    @Override
     public void remove(Module module) {
         super.remove(module);
-        
+
         if (!(module instanceof OSGiModuleImpl)) {
             return;
         }
-        
         OSGiModuleImpl oModule = (OSGiModuleImpl) module;
         Bundle bundle = oModule.getBundle();
-        
+
         String bsn = bundle.getSymbolicName();
         String version = bundle.getVersion().toString();
-        
+
         Set<ServiceLocator> locators = getAllServiceLocators();
-        
+
         for (ServiceLocator locator : locators) {
             if (!ServiceLocatorState.RUNNING.equals(locator.getState())) continue;
             
             ServiceLocatorUtilities.removeFilter(locator, new RemoveFilter(bsn, version));
         }
     }
-    
+
     private static class RemoveFilter implements Filter {
         private final String bsn;
         private final String version;
-        
+
         private RemoveFilter(String bsn, String version) {
             this.bsn = bsn;
             this.version = version;
         }
-        
+
         private static String getMetadataValue(Descriptor d, String key) {
             Map<String, List<String>> metadata = d.getMetadata();
             
@@ -404,10 +408,8 @@ public abstract class AbstractOSGiModulesRegistryImpl extends AbstractModulesReg
         public boolean matches(Descriptor d) {
             String dBSN = getMetadataValue(d, OsgiPopulatorPostProcessor.BUNDLE_SYMBOLIC_NAME);
             if (dBSN == null || !dBSN.equals(bsn)) return false;
-            
             String dVersion = getMetadataValue(d, OsgiPopulatorPostProcessor.BUNDLE_VERSION);
             if (dVersion == null) return false;
-            
             return dVersion.equals(version);
         }
         

@@ -43,7 +43,6 @@ package org.jvnet.hk2.osgiadapter;
 import com.sun.enterprise.module.ModuleDefinition;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.FrameworkUtil;
-
 import java.io.*;
 import java.net.URI;
 import java.util.HashMap;
@@ -57,7 +56,6 @@ import static org.jvnet.hk2.osgiadapter.Logger.logger;
 class ModuleDefinitionCacheSingleton {
 
     private static ModuleDefinitionCacheSingleton _instance;
-
     private Map<URI, ModuleDefinition> cachedData = new HashMap<URI, ModuleDefinition>();
     private boolean cacheInvalidated = false;
 
@@ -73,7 +71,6 @@ class ModuleDefinitionCacheSingleton {
        if (_instance == null) {
            _instance = new ModuleDefinitionCacheSingleton();
        }
-
        return _instance;
     }
 
@@ -83,7 +80,6 @@ class ModuleDefinitionCacheSingleton {
        } else {
            // should check if md is the same
        }
-
        cachedData.put(uri, md);
     }
 
@@ -92,6 +88,7 @@ class ModuleDefinitionCacheSingleton {
             cacheInvalidated =true;
         }
     }
+
     /**
      * Loads the inhabitants metadata from the cache. metadata is saved in a file
      * called inhabitants
@@ -110,7 +107,6 @@ class ModuleDefinitionCacheSingleton {
         }
 
        ObjectInputStream stream = new ObjectInputStream(new BufferedInputStream(new GZIPInputStream(new FileInputStream(io), getBufferSize())));
-
        cachedData = (Map<URI, ModuleDefinition>) stream.readObject();
        stream.close();
     }

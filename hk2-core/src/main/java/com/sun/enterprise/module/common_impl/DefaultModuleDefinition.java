@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2007-2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007-2016 Oracle and/or its affiliates. All rights reserved.
  *
  * The contents of this file are subject to the terms of either the GNU
  * General Public License Version 2 only ("GPL") or the Common Development
@@ -53,6 +53,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -62,9 +63,8 @@ import java.util.logging.Logger;
  *
  * @author Jerome Dochez
  */
-public class DefaultModuleDefinition implements ModuleDefinition {
+public class DefaultModuleDefinition extends AbstractModuleDefinition {
     
-    private final String name;
     private final String version;
     private final String[] publicPkgs;
     protected final List<ModuleDependency> dependencies = new ArrayList<ModuleDependency>();
@@ -72,26 +72,35 @@ public class DefaultModuleDefinition implements ModuleDefinition {
     private final String importPolicy;
     private final String lifecyclePolicy;
     private final Manifest manifest;
+
     /**
      * Main attributes section of the manifest.
      * Always non-null.
      */
     protected final Attributes mainAttributes;
+
     /**
      * Metadata that works like index.
      */
     private final ModuleMetadata metadata = new ModuleMetadata();
 
-    /** TO DO need to support a URI constructor */
+    /**
+     * @param location
+     * @throws java.io.IOException
+     */
     public DefaultModuleDefinition(File location) throws IOException {
         this(location, null);
     }
 
-    // Sahoo changed it to public so that it can be used by osgi-adapter
+    /**
+     * @param location
+     * @param attr
+     * @throws IOException
+     */
     public DefaultModuleDefinition(File location, Attributes attr) throws IOException {
 
         classPath.add(location.toURI());
-        
+
         Jar jarFile = Jar.create(location);
         Manifest m = jarFile.getManifest();
         if(m==null) m = EMPTY_MANIFEST;
@@ -106,7 +115,7 @@ public class DefaultModuleDefinition implements ModuleDefinition {
             attr = new Attributes();
         }
         this.mainAttributes = attr;
-                
+
         // name
         if (attr.getValue(ManifestConstants.BUNDLE_NAME)!=null) {
             name = attr.getValue(ManifestConstants.BUNDLE_NAME);
@@ -116,7 +125,7 @@ public class DefaultModuleDefinition implements ModuleDefinition {
 
         // classpath
         parseClassPath(attr, location.toURI());
-        
+
         // class exported...
         String exported = attr.getValue(ManifestConstants.PKG_EXPORT_NAME);
         ArrayList<String> tmpList = new ArrayList<String>();
@@ -124,20 +133,20 @@ public class DefaultModuleDefinition implements ModuleDefinition {
             tmpList.add(token);
         }
         publicPkgs = tmpList.toArray(new String[tmpList.size()]);
-        
         importPolicy = attr.getValue(ManifestConstants.IMPORT_POLICY);
         lifecyclePolicy = attr.getValue(ManifestConstants.LIFECYLE_POLICY);
-        
         version = "1.0"; // for now ;-)
 
         parseAttributes(attr);
-
         jarFile.loadMetadata(metadata);
     }
 
     /**
      * Parses <tt>{@value ManifestConstants#CLASS_PATH}</tt> from manifest attributes
      * and updates URI list.
+     * @param attr
+     * @param baseURI
+     * @throws java.io.IOException
      */
     protected void parseClassPath(Attributes attr, URI baseURI) throws IOException {
         String classpath = attr.getValue(ManifestConstants.CLASS_PATH);
@@ -187,7 +196,8 @@ public class DefaultModuleDefinition implements ModuleDefinition {
             if(uri.getScheme().equals("file")) {
                 URLConnection c = uri.toURL().openConnection();
                 if(c.getContentLength()==-1)
-                    LOGGER.warning(uri+" pointed from "+name+" in classpath doesn't exist");
+                    LOGGER.log(Level.WARNING, "{0} pointed from {1} in classpath doesn''t exist",
+                            new Object[]{uri, name});
             }
         } catch (IOException e) {
             throw new AssertionError(e); // file is a valid URL
@@ -197,6 +207,8 @@ public class DefaultModuleDefinition implements ModuleDefinition {
 
     /**
      * Extension point to manipulate the classpath element before it's parsed.
+     * @param classpathElement
+     * @return
      * @see #parseClassPath(Attributes,URI) 
      */
     protected String decorateClassPath(String classpathElement) {
@@ -217,6 +229,7 @@ public class DefaultModuleDefinition implements ModuleDefinition {
      * Returns the name of the module
      * @return the name
      */
+    @Override
     public String getName() {
         return name;
     }
@@ -226,6 +239,7 @@ public class DefaultModuleDefinition implements ModuleDefinition {
      * public interfaces of this module.
      * @return the list of public packages or classes
      */
+    @Override
     public String[] getPublicInterfaces() {
         return publicPkgs.clone();
     }
@@ -234,6 +248,7 @@ public class DefaultModuleDefinition implements ModuleDefinition {
      * Returns the list of module dependencies
      * @return the ModuleDependency
      */
+    @Override
     public ModuleDependency[] getDependencies() {
         return dependencies.toArray(new ModuleDependency[dependencies.size()]);
     }
@@ -243,6 +258,7 @@ public class DefaultModuleDefinition implements ModuleDefinition {
      *
      * @return the list of URI locations for this module
      */
+    @Override
     public URI[] getLocations() {
         return classPath.toArray(new URI[classPath.size()]);
     }
@@ -251,6 +267,7 @@ public class DefaultModuleDefinition implements ModuleDefinition {
      * Returns the module's version
      * @return the module's version
      */
+    @Override
     public String getVersion() {
         return version;
     }
@@ -261,6 +278,7 @@ public class DefaultModuleDefinition implements ModuleDefinition {
      * null if there is no such implementation
      * @return the  {@link com.sun.enterprise.module.ImportPolicy ImportPolicy} implementation class name
      */
+    @Override
     public String getImportPolicyClassName() {
         return importPolicy;
     }
@@ -271,6 +289,7 @@ public class DefaultModuleDefinition implements ModuleDefinition {
      * null if there is no such implementation
      * @return the  {@link com.sun.enterprise.module.LifecyclePolicy LifecyclePolicy} implementation class name
      */
+    @Override
     public String getLifecyclePolicyClassName() {
         return lifecyclePolicy;
     }
@@ -281,22 +300,25 @@ public class DefaultModuleDefinition implements ModuleDefinition {
      * @return
      *      never null.
      */
+    @Override
     public Manifest getManifest() {
         return manifest;
     }
 
+    @Override
     public ModuleMetadata getMetadata() {
         return metadata;
     }
 
     /**
      * Assists debugging.
+     * @return
      */
+    @Override
     public String toString() {
         return name+':'+version;
     }
 
     private static final Manifest EMPTY_MANIFEST = new Manifest();
-
     private static final Logger LOGGER = Logger.getLogger(DefaultModuleDefinition.class.getName());
 }

@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2007-2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007-2016 Oracle and/or its affiliates. All rights reserved.
  *
  * The contents of this file are subject to the terms of either the GNU
  * General Public License Version 2 only ("GPL") or the Common Development
@@ -41,10 +41,8 @@
 package com.sun.enterprise.module.single;
 
 import com.sun.enterprise.module.bootstrap.StartupContext;
-
 import java.util.List;
 import java.util.Properties;
-
 import org.glassfish.hk2.api.DynamicConfiguration;
 import org.glassfish.hk2.api.DynamicConfigurationService;
 import org.glassfish.hk2.api.MultiException;
@@ -88,8 +86,7 @@ public class StaticModulesRegistry extends SingleModulesRegistry {
         ServiceLocator serviceLocator = super.createServiceLocator(name);
 
         StartupContext sc = startupContext;
-
-        if (startupContext==null) {
+        if (startupContext == null) {
             sc = new StartupContext(new Properties());
         }
 

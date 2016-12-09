@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2011-2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011-2016 Oracle and/or its affiliates. All rights reserved.
  *
  * The contents of this file are subject to the terms of either the GNU
  * General Public License Version 2 only ("GPL") or the Common Development
@@ -41,7 +41,6 @@
 package org.jvnet.hk2.osgiadapter;
 
 import static org.jvnet.hk2.osgiadapter.Logger.logger;
-
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileWriter;
@@ -53,7 +52,6 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
-
 import org.apache.felix.bundlerepository.DataModelHelper;
 import org.apache.felix.bundlerepository.Reason;
 import org.apache.felix.bundlerepository.Repository;
@@ -81,7 +79,7 @@ class ObrHandler extends ServiceTracker {
     private boolean deployOptionalRequirements = false;
     // We maintain our own repository list which we use during resolution process.
     // That way, we are not affected by any repository added by user to a shared instance of repository admin.
-    private List<Repository> repositories = new ArrayList<Repository>();
+    private final List<Repository> repositories = new ArrayList<Repository>();
 
     public ObrHandler(BundleContext bctx) {
         super(bctx, RepositoryAdmin.class.getName(), null);
@@ -398,7 +396,7 @@ class ObrHandler extends ServiceTracker {
         // We can't use the following method, because we can't rely on the RepositoryAdmin to have the correct
         // list of repositories. So, we do the discovery ourselves.
         // return getRepositoryAdmin().discoverResources(query);
-        Filter filter = filterExpr != null ? getRepositoryAdmin().getHelper().filter(filterExpr) : null;
+        Filter _filter = filterExpr != null ? getRepositoryAdmin().getHelper().filter(filterExpr) : null;
         Resource[] resources;
         Repository[] repos = getRepositories();
         List<Resource> matchList = new ArrayList<Resource>();
@@ -407,7 +405,7 @@ class ObrHandler extends ServiceTracker {
             for (int resIdx = 0; (resources != null) && (resIdx < resources.length); resIdx++) {
                 Properties dict = new Properties();
                 dict.putAll(resources[resIdx].getProperties());
-                if (filter == null || filter.match(dict)) {
+                if (_filter == null || _filter.match(dict)) {
                     matchList.add(resources[resIdx]);
                 }
             }
@@ -435,7 +433,7 @@ class ObrHandler extends ServiceTracker {
             sb.append("\n").append(r.getURI());
         }
         String optionalRequirementsDeployed = deployOptionalRequirements ? "deployed" : "not deployed";
-        sb.append("]\nOptional resources (" + optionalRequirementsDeployed + "): [");
+        sb.append("]\nOptional resources (").append(optionalRequirementsDeployed).append("): [");
         for (Resource r : optionalResources) {
             sb.append("\n").append(r.getURI());
         }

@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2007-2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007-2016 Oracle and/or its affiliates. All rights reserved.
  *
  * The contents of this file are subject to the terms of either the GNU
  * General Public License Version 2 only ("GPL") or the Common Development
@@ -41,21 +41,19 @@
 package org.jvnet.hk2.osgiadapter;
 
 import static org.jvnet.hk2.osgiadapter.Logger.logger;
-
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.logging.Level;
-
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.BundleEvent;
 import org.osgi.framework.BundleException;
 import org.osgi.framework.SynchronousBundleListener;
-
 import com.sun.enterprise.module.Module;
 import com.sun.enterprise.module.ModuleDefinition;
+import com.sun.enterprise.module.common_impl.EmptyModule;
 
 /**
  * This is an implementation of {@link com.sun.enterprise.module.ModulesRegistry}.
@@ -63,8 +61,7 @@ import com.sun.enterprise.module.ModuleDefinition;
  *
  * @author Sanjeeb.Sahoo@Sun.COM
  */
-public class OSGiModulesRegistryImpl
-        extends AbstractOSGiModulesRegistryImpl
+public class OSGiModulesRegistryImpl extends AbstractOSGiModulesRegistryImpl
         implements SynchronousBundleListener {
 
     ModuleDefinitionCacheSingleton cache = ModuleDefinitionCacheSingleton.getInstance();
@@ -84,13 +81,18 @@ public class OSGiModulesRegistryImpl
             }
             try {
                 add(makeModule(b)); // call add as it processes provider names
-            } catch (Exception e) {
+            } catch (IOException e) {
                 logger.logp(Level.WARNING, "OSGiModulesRegistryImpl",
                         "OSGiModulesRegistryImpl",
                         "Not able convert bundle [{0}] having location [{1}] " +
                                 "to module because of exception: {2}",
                         new Object[]{b, b.getLocation(), e});
-                continue;
+            } catch (URISyntaxException e) {
+                logger.logp(Level.WARNING, "OSGiModulesRegistryImpl",
+                        "OSGiModulesRegistryImpl",
+                        "Not able convert bundle [{0}] having location [{1}] " +
+                                "to module because of exception: {2}",
+                        new Object[]{b, b.getLocation(), e});
             }
         }
 
@@ -103,6 +105,7 @@ public class OSGiModulesRegistryImpl
         }
     }
 
+    @Override
     public void bundleChanged(BundleEvent event) {
         // Extender implementation.
         try {
@@ -110,20 +113,19 @@ public class OSGiModulesRegistryImpl
             switch (event.getType()) {
                 case BundleEvent.INSTALLED : {
                     if (logger.isLoggable(Level.FINE)) {
-                        logger.fine("[" + bundle.getBundleId() + "] " + bundle.getSymbolicName() +  " installed");
+                        logger.log(Level.FINE, "[{0}] {1} installed", new Object[]{bundle.getBundleId(), bundle.getSymbolicName()});
                     }
                     break;
                 } 
 
-                case BundleEvent.RESOLVED :
-                {
+                case BundleEvent.RESOLVED : {
                     // call add as it processes provider names
                     OSGiModuleImpl m = makeModule(bundle);
                     add(m);
                     break;
                 }
-                case BundleEvent.UNINSTALLED :
-                {
+
+                case BundleEvent.UNINSTALLED : {
                     final Module m = getModule(bundle);
                     
                     if (m!=null) {
@@ -153,7 +155,9 @@ public class OSGiModulesRegistryImpl
                     add(makeModule(bundle));
                     break;
             }
-        } catch (Exception e) {
+        } catch (IOException e) {
+            logger.logp(Level.WARNING, "OSGiModulesRegistryImpl", "bundleChanged", e.getMessage(), e);
+        } catch (URISyntaxException e) {
             logger.logp(Level.WARNING, "OSGiModulesRegistryImpl", "bundleChanged", e.getMessage(), e);
         }
     }
@@ -161,27 +165,22 @@ public class OSGiModulesRegistryImpl
     // Factory method
     private OSGiModuleImpl makeModule(Bundle bundle) throws IOException, URISyntaxException {
         final OSGiModuleDefinition md = makeModuleDef(bundle);
-
         OSGiModuleImpl m = new OSGiModuleImpl(this, bundle, md);
-
         return m;
     }
 
     // Factory method
     private OSGiModuleDefinition makeModuleDef(Bundle bundle)
             throws IOException, URISyntaxException {
+
         URI key = OSGiModuleDefinition.toURI(bundle);
-
         ModuleDefinition md = cache.get(key);
-
         if (md != null) {
-        	return OSGiModuleDefinition.class.cast(md);
+            return OSGiModuleDefinition.class.cast(md);
         } else {
             cache.invalidate();
             md = new OSGiModuleDefinition(bundle);
-
             cache.cacheModuleDefinition(key, md);
-
             return (OSGiModuleDefinition) md;
         }
     }
@@ -197,40 +196,43 @@ public class OSGiModulesRegistryImpl
 
     @Override
     public synchronized void remove(Module module) {
-    	
         // It is overridden to make it synchronized as it is called from
         // BundleListener.
         super.remove(module);
 
         // Update cache. 
         final URI location = module.getModuleDefinition().getLocations()[0];
-
         cache.remove(location);
     }
 
     // factory method
+    @Override
     protected Module newModule(ModuleDefinition moduleDef) {
-        String location = moduleDef.getLocations()[0].toString();
-        try {
-            if (logger.isLoggable(Level.FINE)) {
-                logger.logp(Level.FINE, "OSGiModulesRegistryImpl", "newModule",
-                    "location = {0}", location);
+        if (moduleDef instanceof OSGiModuleDefinition) {
+            String location = moduleDef.getLocations()[0].toString();
+            try {
+                if (logger.isLoggable(Level.FINE)) {
+                    logger.logp(Level.FINE, "OSGiModulesRegistryImpl", "newModule",
+                            "location = {0}", location);
+                }
+                File l = new File(moduleDef.getLocations()[0]);
+                if (l.isDirectory()) {
+                    location = "reference:" + location;
+                }
+                Bundle bundle = bctx.installBundle(location);
+                // wrap Bundle by a Module object
+                return new OSGiModuleImpl(this, bundle, moduleDef);
+            } catch (BundleException e) {
+                logger.logp(Level.WARNING, "OSGiModulesRegistryImpl", "newModule",
+                        "Exception {0} while adding location = {1}", new Object[]{e, location});
             }
-            File l = new File(moduleDef.getLocations()[0]);
-            if (l.isDirectory()) {
-                location = "reference:" + location;
-            }
-            Bundle bundle = bctx.installBundle(location);
-            // wrap Bundle by a Module object
-            return new OSGiModuleImpl(this, bundle, moduleDef);
-        } catch (BundleException e) {
-            logger.logp(Level.WARNING, "OSGiModulesRegistryImpl", "newModule",
-                    "Exception {0} while adding location = {1}", new Object[]{e, location});
-//            throw new RuntimeException(e); // continue
+            return null;
+        } else {
+            return new EmptyModule(moduleDef, this);
         }
-        return null;
     }
 
+    @Override
     public synchronized void shutdown() {
 
         for (Module m : modules.values()) {
@@ -240,16 +242,15 @@ public class OSGiModulesRegistryImpl
                  m.stop();
             }
         }
-        
+
         // Save the cache before clearing modules
         try {
             cache.saveCache();
         } catch (IOException e) {
             Logger.logger.log(Level.WARNING, "Cannot save metadata to cache", e);
-            }
+        }
 
         bctx.removeBundleListener(this);
-
         super.shutdown();
     }
 
@@ -260,5 +261,4 @@ public class OSGiModulesRegistryImpl
         if (value == null) value = System.getProperty(property);
         return value;
     }
-
 }

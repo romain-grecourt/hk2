@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2011-2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011-2016 Oracle and/or its affiliates. All rights reserved.
  *
  * The contents of this file are subject to the terms of either the GNU
  * General Public License Version 2 only ("GPL") or the Common Development
@@ -43,7 +43,6 @@ package org.jvnet.hk2.osgiadapter;
 import com.sun.enterprise.module.*;
 import com.sun.enterprise.module.Repository;
 import org.osgi.framework.*;
-
 import java.net.URI;
 import java.util.*;
 import java.util.logging.Level;
@@ -52,8 +51,10 @@ import java.util.logging.Logger;
 /**
  * @author Sanjeeb.Sahoo@Sun.COM
  */
-public class OSGiObrModulesRegistryImpl extends AbstractOSGiModulesRegistryImpl implements SynchronousBundleListener {
-    private final Logger logger = Logger.getLogger(getClass().getPackage().getName());
+public class OSGiObrModulesRegistryImpl extends AbstractOSGiModulesRegistryImpl
+        implements SynchronousBundleListener {
+
+    private static final Logger logger = Logger.getLogger(OSGiObrModulesRegistryImpl.class.getPackage().getName());
     private final ObrHandler obrHandler;
 
     OSGiObrModulesRegistryImpl(BundleContext bctx) {
@@ -101,7 +102,6 @@ public class OSGiObrModulesRegistryImpl extends AbstractOSGiModulesRegistryImpl 
                 Module module = getModule(event.getBundle());
                 if (module instanceof OSGiObrModuleImpl) {
                     OSGiObrModuleImpl.class.cast(module).setBundle(event.getBundle());
-                    return;
                 }
         }
     }

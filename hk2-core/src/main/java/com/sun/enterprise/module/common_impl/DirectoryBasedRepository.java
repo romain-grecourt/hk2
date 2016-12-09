@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2007-2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007-2016 Oracle and/or its affiliates. All rights reserved.
  *
  * The contents of this file are subject to the terms of either the GNU
  * General Public License Version 2 only ("GPL") or the Common Development
@@ -42,12 +42,12 @@ package com.sun.enterprise.module.common_impl;
 
 import com.sun.enterprise.module.ModuleDefinition;
 import com.sun.enterprise.module.RepositoryChangeListener;
-
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.FileFilter;
 import java.net.URI;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -72,30 +72,29 @@ public class DirectoryBasedRepository extends AbstractRepositoryImpl {
     private boolean isTimerThreadDaemon = false;
     private List<File> subDirectories;
 
-    /** Creates a new instance of DirectoryBasedRepository */
+    /**
+     * Creates a new instance of DirectoryBasedRepository
+     * @param name
+     * @param repository */
     public DirectoryBasedRepository(String name, File repository) {
         super(name,repository.toURI());
         this.repository = repository;
-        
     }
-    
-    private void initializeSubDirectories() {
-        if (subDirectories != null) return;
-        subDirectories = new LinkedList<File>();
-        
-        for (File file : repository.listFiles(new FileFilter() {
-            public boolean accept(File pathname) {
-                return pathname.isDirectory();
-            }
-        })) {
-            subDirectories.add(file);
-        }
-    }
-
 
     public DirectoryBasedRepository(String name, File repository, boolean isTimerThreadDaemon) {
         this(name, repository);
         this.isTimerThreadDaemon = isTimerThreadDaemon;
+    }
+
+    private void initializeSubDirectories() {
+        if (subDirectories != null) return;
+        subDirectories = new LinkedList<File>();
+        subDirectories.addAll(Arrays.asList(repository.listFiles(new FileFilter() {
+            @Override
+            public boolean accept(File pathname) {
+                return pathname.isDirectory();
+            }
+        })));
     }
 
     @Override
@@ -108,6 +107,7 @@ public class DirectoryBasedRepository extends AbstractRepositoryImpl {
             timer = new Timer("hk2-repo-listener-"+ this.getName(), isTimerThreadDaemon);
             timer.schedule(new TimerTask() {
                 long lastModified = repository.lastModified();
+                @Override
                 public void run() {
                     synchronized(this) {
                         if (lastModified<repository.lastModified()) {
@@ -120,7 +120,7 @@ public class DirectoryBasedRepository extends AbstractRepositoryImpl {
             }, intervalInMs, intervalInMs);
             timer.purge();
         }
-        return returnValue;        
+        return returnValue;
     }
 
     @Override
@@ -132,11 +132,11 @@ public class DirectoryBasedRepository extends AbstractRepositoryImpl {
     }
     
 
+    @Override
     protected void loadModuleDefs(Map<ModuleId, ModuleDefinition> moduleDefs, List<URI> libraries) throws IOException {
         if (!repository.exists()) {
             throw new FileNotFoundException(repository.getAbsolutePath());
         }
-
 
         try {
             File[] files = repository.listFiles();
@@ -152,15 +152,15 @@ public class DirectoryBasedRepository extends AbstractRepositoryImpl {
             }
 
         } catch (IOException e) {
-            IOException x = new IOException("Failed to load modules from " + repository);
-            x.initCause(e);
-            throw x;
+            throw new IOException("Failed to load modules from " + repository, e);
         }
     }
 
     /**
      * Checks the <tt>xyz.disabled</tt> file for <tt>xyz.jar</tt> and return true
      * if the file exists.
+     * @param jar
+     * @return
      */
     protected boolean isDisabled(File jar) {
         String fileName = jar.getName();
@@ -224,6 +224,7 @@ public class DirectoryBasedRepository extends AbstractRepositoryImpl {
         List<File> previous = new LinkedList<File>();
         previous.addAll(subDirectories);
         for (File file : repository.listFiles(new FileFilter() {
+            @Override
             public boolean accept(File pathname) {
                 return pathname.isDirectory();
             }
@@ -250,5 +251,4 @@ public class DirectoryBasedRepository extends AbstractRepositoryImpl {
             }
         }
     }
-
 }

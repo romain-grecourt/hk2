@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2011-2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011-2016 Oracle and/or its affiliates. All rights reserved.
  *
  * The contents of this file are subject to the terms of either the GNU
  * General Public License Version 2 only ("GPL") or the Common Development
@@ -48,6 +48,7 @@ public final class Constants {
      * Indicates if OBR is enabled or not.
      */
     public static final String OBR_ENABLED = "com.sun.enterprise.hk2.obrEnabled";
+
     /**
      * This property is used to decide if OBR repository should be synchronously initialized.
      */

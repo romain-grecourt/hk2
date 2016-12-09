@@ -126,22 +126,24 @@ public abstract class AbstractModulesRegistryImpl implements ModulesRegistry {
     /**
      * Creates an uninitialized {@link ServiceLocator}
      *
+     * @return
      */
     @Override
     public ServiceLocator newServiceLocator() throws MultiException {
-    	return newServiceLocator(null);
+        return newServiceLocator(null);
     }
     
     /**
      * Create a new ServiceLocator optionally providing a parent Services 
+     * @param parent
+     * @return
      */
     @Override
-	public ServiceLocator newServiceLocator(ServiceLocator parent) throws MultiException {
+    public ServiceLocator newServiceLocator(ServiceLocator parent) throws MultiException {
         // We intentionally create an unnamed service locator, because the caller is going to
         // manage its lifecycle.
-    	ServiceLocator serviceLocator =  ServiceLocatorFactory.getInstance().create(null, parent);
- 
-    	initializeServiceLocator(serviceLocator);
+        ServiceLocator serviceLocator = ServiceLocatorFactory.getInstance().create(null, parent);
+        initializeServiceLocator(serviceLocator);
         return serviceLocator;
     }
 
@@ -150,18 +152,14 @@ public abstract class AbstractModulesRegistryImpl implements ModulesRegistry {
                 .getService(DynamicConfigurationService.class);
 
         DynamicConfiguration config = dcs.createDynamicConfiguration();
-
         config.bind(BuilderHelper.createConstantDescriptor(Logger.getAnonymousLogger()));
 
         // default modules registry is the one that created the habitat
         config.bind(BuilderHelper.createConstantDescriptor(this));
-
         ContextDuplicatePostProcessor processor = serviceLocator.getService(ContextDuplicatePostProcessor.class);
-
-		if (processor == null) {
-		    config.addActiveDescriptor(ContextDuplicatePostProcessor.class);
-		}
-
+        if (processor == null) {
+            config.addActiveDescriptor(ContextDuplicatePostProcessor.class);
+        }
         config.commit();
     }
 
@@ -170,78 +168,94 @@ public abstract class AbstractModulesRegistryImpl implements ModulesRegistry {
      *
      * @param name
      *      Determines which descriptors are loaded.
+     * @param serviceLocator
      * @param postProcessors
      */
-     public void populateServiceLocator(String name, ServiceLocator serviceLocator, List<PopulatorPostProcessor> postProcessors) throws MultiException {
-         try {
-             for (final Module module : getModules()) { 
-            	   // TODO: should get the inhabitantsParser out of Main instead since
-                 // this could have been overridden
-             	List<ActiveDescriptor> allDescriptors =
-             	        parseInhabitants(module, name, serviceLocator, postProcessors);
-             	if (allDescriptors == null) continue;
-             	if (allDescriptors.isEmpty()) continue;
-             	
-             	Map<ServiceLocator, List<ActiveDescriptor>> descriptorByServiceLocator = moduleDescriptors.get(module);
-             	if (descriptorByServiceLocator == null) {
-             	    descriptorByServiceLocator = new HashMap<ServiceLocator, List<ActiveDescriptor>>();
-             	    
-             	   moduleDescriptors.put(module, descriptorByServiceLocator);
-             	}
-             	
-             	List<ActiveDescriptor> foundDs = descriptorByServiceLocator.get(serviceLocator);
-             	if (foundDs == null) {
-             	    foundDs = new LinkedList<ActiveDescriptor>();
-             	    
-             	    descriptorByServiceLocator.put(serviceLocator, foundDs);
-             	}
-             	
-             	foundDs.addAll(allDescriptors);
-             }
-         } catch (Exception e) {
-             throw new MultiException(e);
-         }
-         // From now on, we will keep this service registry up-to-date with module system state
-         habitats.put(serviceLocator, name);
-     }
-
     @Override
-	public void populateConfig(ServiceLocator serviceLocator) {
-    	try {
-        HK2Populator.populateConfig(serviceLocator);
-    	} catch (BootException be) {
-    		throw new MultiException(be);
-    	}
+    public void populateServiceLocator(String name, ServiceLocator serviceLocator, List<PopulatorPostProcessor> postProcessors) throws MultiException {
+        try {
+            for (final Module module : getModules()) {
+                // TODO: should get the inhabitantsParser out of Main instead since
+                // this could have been overridden
+                List<ActiveDescriptor> allDescriptors
+                        = parseInhabitants(module, name, serviceLocator, postProcessors);
+                if (allDescriptors == null) {
+                    continue;
+                }
+                if (allDescriptors.isEmpty()) {
+                    continue;
+                }
+
+                Map<ServiceLocator, List<ActiveDescriptor>> descriptorByServiceLocator = moduleDescriptors.get(module);
+                if (descriptorByServiceLocator == null) {
+                    descriptorByServiceLocator = new HashMap<ServiceLocator, List<ActiveDescriptor>>();
+                    moduleDescriptors.put(module, descriptorByServiceLocator);
+                }
+
+                List<ActiveDescriptor> foundDs = descriptorByServiceLocator.get(serviceLocator);
+                if (foundDs == null) {
+                    foundDs = new LinkedList<ActiveDescriptor>();
+                    descriptorByServiceLocator.put(serviceLocator, foundDs);
+                }
+
+                foundDs.addAll(allDescriptors);
+            }
+        } catch (IOException e) {
+            throw new MultiException(e);
+        } catch (BootException e) {
+            throw new MultiException(e);
+        }
+        // From now on, we will keep this service registry up-to-date with module system state
+        habitats.put(serviceLocator, name);
     }
 
-    public ServiceLocator createServiceLocator(ServiceLocator parent, String name, List<PopulatorPostProcessor> postProcessors) throws MultiException {
+    @Override
+    public void populateConfig(ServiceLocator serviceLocator) {
+        try {
+            HK2Populator.populateConfig(serviceLocator);
+        } catch (BootException be) {
+            throw new MultiException(be);
+        }
+    }
+
+    @Override
+    public ServiceLocator createServiceLocator(ServiceLocator parent,
+                                               String name,
+                                               List<PopulatorPostProcessor> postProcessors)
+            throws MultiException {
+
         ServiceLocator serviceLocator = newServiceLocator(parent);
         populateServiceLocator(name, serviceLocator, postProcessors);
         return serviceLocator;
     }
 
-	public ServiceLocator createServiceLocator(String name) throws MultiException {
-    	return createServiceLocator(null, name, null);
+    @Override
+    public ServiceLocator createServiceLocator(String name) throws MultiException {
+        return createServiceLocator(null, name, null);
     }
 
-	public ServiceLocator createServiceLocator() throws MultiException {
-    	return createServiceLocator("default");
+    @Override
+    public ServiceLocator createServiceLocator() throws MultiException {
+        return createServiceLocator("default");
     }
 
     protected abstract List<ActiveDescriptor> parseInhabitants(Module module,
-                                                               String name, ServiceLocator serviceLocator, List<PopulatorPostProcessor> postProcessors)
+                                                               String name,
+                                                               ServiceLocator serviceLocator,
+                                                               List<PopulatorPostProcessor> postProcessors)
             throws IOException, BootException;
 
     /**
      * Add a new <code>Repository</code> to this registry. From now on
      * the repository will be used to procure requested module not yet registered
      * in this registry instance. Repository can be searched in a particular 
-     * order (to accomodate performance requirements like looking at local 
-     * repositories first), a search order (1 to 100) can be specified when 
-     * adding a repository to the registry (1 is highest priority). 
+     * order (to accommodate performance requirements like looking at local
+     * repositories first), a search order (1 to 100) can be specified when
+     * adding a repository to the registry (1 is highest priority).
      * @param repository new repository to attach to this registry
      * @param weight int value from 1 to 100 to specify the search order
      */
+    @Override
     public synchronized void addRepository(Repository repository, int weight) {
         // check that we don't already have this repository
         for (Repository repo : repositories.values()) {
@@ -254,17 +268,18 @@ public abstract class AbstractModulesRegistryImpl implements ModulesRegistry {
         }
         repositories.put(weight, repository);
     }
-    
+
     /**
      * Add a new <code>Repository</code> to this registry. From now on 
      * the repository will be used to procure requested nodule not 
      * registered in this instance.
      * @param repository new repository to attach to this registry
      */
+    @Override
     public synchronized void addRepository(Repository repository) {
         repositories.put(100+repositories.size(), repository);
     }
-    
+
     /**
      * Remove a repository from the list of attached repositories to 
      * this instances. After this call, the <code>Repository</code>
@@ -272,6 +287,7 @@ public abstract class AbstractModulesRegistryImpl implements ModulesRegistry {
      * longer
      * @param name name of the repository to remove
      */
+    @Override
     public synchronized void removeRepository(String name) {
         for (Integer weight : repositories.keySet()) {
             Repository repo = repositories.get(weight);
@@ -288,6 +304,7 @@ public abstract class AbstractModulesRegistryImpl implements ModulesRegistry {
      * @param name name of the repository to return
      * @return the repository or null if not found
      */
+    @Override
     public synchronized Repository getRepository(String name) {
         for (Integer weight : repositories.keySet()) {
             Repository repo = repositories.get(weight);
@@ -307,18 +324,21 @@ public abstract class AbstractModulesRegistryImpl implements ModulesRegistry {
      * @return the module instance or null if none can be found
      * @throws ResolveError if the module dependencies cannot be resolved
      */
+    @Override
     public Module makeModuleFor(String name, String version) throws ResolveError {
         return makeModuleFor(name, version, true);
     }
 
+    @Override
     public Module makeModuleFor(String name, String version, boolean resolve) throws ResolveError {
+
         Module module;
-                
         if(parent!=null) {
             module = parent.makeModuleFor(name,version, resolve);
-            if(module!=null)        return module;
+            if(module!=null)
+                return module;
         }
-        
+
         module = modules.get(AbstractFactory.getInstance().createModuleId(name, version));
         if (module == null && version == null) {
             Collection<Module> matchingModules = getModules(name);
@@ -352,6 +372,7 @@ public abstract class AbstractModulesRegistryImpl implements ModulesRegistry {
      * name or null if not found.
      * @throws ResolveError if the module dependencies cannot be resolved
      */
+    @Override
     public Module makeModuleFor(String packageName) throws ResolveError {
         if(parent!=null) {
             Module m = parent.makeModuleFor(packageName);
@@ -398,7 +419,7 @@ public abstract class AbstractModulesRegistryImpl implements ModulesRegistry {
      * @param newModule the new module
      */
     protected void add(Module newModule) {
-    	//if (Utils.isLoggable(Level.INFO)) {
+        //if (Utils.isLoggable(Level.INFO)) {
         //    Utils.getDefaultLogger().info("New module " + newModule);
         //}
         assert newModule.getRegistry()==this;
@@ -418,77 +439,74 @@ public abstract class AbstractModulesRegistryImpl implements ModulesRegistry {
         for (Map.Entry<ServiceLocator, String> entry : habitats.entrySet()) {
             String name = entry.getValue();
             ServiceLocator serviceLocator = entry.getKey();
-            try
-            {
+            try {
                 parseInhabitants(newModule, name, serviceLocator, new ArrayList<PopulatorPostProcessor>());
-            }
-            catch (Exception e)
-            {
-                throw new RuntimeException("Not able to parse inhabitants information");
+            }  catch (IOException e) {
+                throw new RuntimeException("Not able to parse inhabitants information",e);
+            } catch (BootException e) {
+                throw new RuntimeException("Not able to parse inhabitants information",e);
             }
           
         }
     }
-    
+
     private void removeShutdownLocators() {
         for (Map<ServiceLocator, List<ActiveDescriptor>> descriptorsByServiceLocator : moduleDescriptors.values()) {
             Set<ServiceLocator> keys = new HashSet<ServiceLocator>(descriptorsByServiceLocator.keySet());
-            
+
             for (ServiceLocator key : keys) {
-                if (!ServiceLocatorState.SHUTDOWN.equals(key.getState())) continue;
-                
+                if (!ServiceLocatorState.SHUTDOWN.equals(key.getState())) {
+                    continue;
+                }
                 descriptorsByServiceLocator.remove(key);
-                
                 habitats.remove(key);
             }
         }
-   
-        
     }
-    
+
     /**
-     * Removes a module from the registry. The module will not be accessible 
+     * Removes a module from the registry. The module will not be accessible
      * from this registry after this method returns.
+     * @param module
      */
-	public void remove(Module module) {
-		// if (Utils.isLoggable(Level.INFO)) {
-		// Utils.getDefaultLogger().info("Removed module " + module);
-		// }
-		assert module.getRegistry() == this;
-		modules.remove(AbstractFactory.getInstance().createModuleId(
-				module.getModuleDefinition()));
-		
-		// Removes any shutdown locators before we operate on them
-		removeShutdownLocators();
+    public void remove(Module module) {
+        // if (Utils.isLoggable(Level.INFO)) {
+        // Utils.getDefaultLogger().info("Removed module " + module);
+        // }
+        assert module.getRegistry() == this;
+        modules.remove(AbstractFactory.getInstance().createModuleId(
+                module.getModuleDefinition()));
 
-		// TODO: modules comes right back when getModules() is called.
-		// the modeling is incorrect
+        // Removes any shutdown locators before we operate on them
+        removeShutdownLocators();
 
-		Map<ServiceLocator, List<ActiveDescriptor>> descriptorsByServiceLocator = moduleDescriptors
-				.get(module);
+        // TODO: modules comes right back when getModules() is called.
+        // the modeling is incorrect
+        Map<ServiceLocator, List<ActiveDescriptor>> descriptorsByServiceLocator = moduleDescriptors
+                .get(module);
 
-		if (descriptorsByServiceLocator != null) {
-			for (Entry<ServiceLocator, List<ActiveDescriptor>> e : descriptorsByServiceLocator
-					.entrySet()) {
-				ServiceLocator sl = e.getKey();
-				if (!sl.getState().equals(ServiceLocatorState.RUNNING)) continue;
-				
-				List<ActiveDescriptor> descriptors = e.getValue();
+        if (descriptorsByServiceLocator != null) {
+            for (Entry<ServiceLocator, List<ActiveDescriptor>> e : descriptorsByServiceLocator
+                    .entrySet()) {
+                ServiceLocator sl = e.getKey();
+                if (!sl.getState().equals(ServiceLocatorState.RUNNING)) {
+                    continue;
+                }
 
-				for (Descriptor descriptor : descriptors) {
-					ServiceLocatorUtilities.removeOneDescriptor(sl, descriptor);
-				}
-			}
-			moduleDescriptors.remove(module);
-		}
-	}
-	
-	protected Set<ServiceLocator> getAllServiceLocators() {
-	    removeShutdownLocators();
-	    
-	    return Collections.unmodifiableSet(habitats.keySet());
-	}
-    
+                List<ActiveDescriptor> descriptors = e.getValue();
+                for (Descriptor descriptor : descriptors) {
+                    ServiceLocatorUtilities.removeOneDescriptor(sl, descriptor);
+                }
+            }
+            moduleDescriptors.remove(module);
+        }
+    }
+
+    protected Set<ServiceLocator> getAllServiceLocators() {
+        removeShutdownLocators();
+        return Collections.unmodifiableSet(habitats.keySet());
+    }
+
     /** 
      * Returns the list of shared Modules registered in this instance.
      *
@@ -498,6 +516,7 @@ public abstract class AbstractModulesRegistryImpl implements ModulesRegistry {
      *
      * @return an umodifiable list of loaded modules
      */
+    @Override
     public Collection<Module> getModules() {
 
         // make a copy to avoid synchronizing since this API can be called while
@@ -526,6 +545,7 @@ public abstract class AbstractModulesRegistryImpl implements ModulesRegistry {
         return modules.values();
     }
 
+    @Override
     public Collection<Module> getModules(String moduleName)
     {
         List<Module> result = new ArrayList<Module>();
@@ -539,29 +559,31 @@ public abstract class AbstractModulesRegistryImpl implements ModulesRegistry {
      * Modules can notify their registry that they have changed (classes, 
      * resources,etc...). Registries are requested to take appropriate action
      * to make the new module available.
+     * @param service
      */
+    @Override
     public void changed(Module service) {
-        
-  
         // house keeping...
         remove(service);
         ModuleDefinition info = service.getModuleDefinition();
-        
         Module newService = newModule(info);
-        
         // store it
         add(newService);
-    }   
-    
+    }
+
     /**
      * Registers a new DefaultModuleDefinition in this registry. Using this module
      * definition, the registry will be capable of created shared and private
      * <code>Module</code> instances.
+     * @param info
+     * @return
      */
+    @Override
     public synchronized Module add(ModuleDefinition info) throws ResolveError {
         return add(info, true);
     }
 
+    @Override
     public Module add(ModuleDefinition info, boolean resolve) throws ResolveError {
         // it may have already been created
         Module service = makeModuleFor(info.getName(), info.getVersion(), resolve);
@@ -582,18 +604,22 @@ public abstract class AbstractModulesRegistryImpl implements ModulesRegistry {
      * Print a Registry dump to the logger
      * @param logger the logger to dump on
      */
+    @Override
     public void print(Logger logger) {
-        logger.info("Modules Registry information : " + modules.size() + " modules");
+        logger.log(Level.INFO, "Modules Registry information : {0} modules", modules.size());
         for (Module module : modules.values()) {
             logger.info(module.getModuleDefinition().getName());
         }
     }
 
+    @Override
     public <T> Iterable<Class<? extends T>> getProvidersClass(final Class<T> serviceClass) {
         // oh boy, it really hurts not to have type inference.
         return new Iterable<Class<? extends T>>() {
+            @Override
             public Iterator<Class<? extends T>> iterator() {
                 return new FlattenIterator<Class<? extends T>>(new AdapterIterator<Iterator<Class<? extends T>>,Module>(getModules().iterator()) {
+                    @Override
                     protected Iterator<Class<? extends T>> adapt(Module module) {
                         return module.getProvidersClass(serviceClass).iterator();
                     }

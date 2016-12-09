@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2007-2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007-2016 Oracle and/or its affiliates. All rights reserved.
  *
  * The contents of this file are subject to the terms of either the GNU
  * General Public License Version 2 only ("GPL") or the Common Development
@@ -72,22 +72,27 @@ public abstract class AbstractRepositoryImpl implements Repository {
         this.location = location;
     }
 
+    @Override
     public String getName() {
         return name;
     }
 
+    @Override
     public URI getLocation() {
         return location;
     }
 
+    @Override
     public ModuleDefinition find(String name, String version) {
         return moduleDefs.get(AbstractFactory.getInstance().createModuleId(name, version));
     }
 
+    @Override
     public List<ModuleDefinition> findAll() {
         return new ArrayList<ModuleDefinition>(moduleDefs.values());
     }
 
+    @Override
     public List<ModuleDefinition> findAll(String name) {
         List<ModuleDefinition> result = new ArrayList<ModuleDefinition>();
         for (ModuleDefinition md : findAll()) {
@@ -96,6 +101,7 @@ public abstract class AbstractRepositoryImpl implements Repository {
         return result;
     }
 
+    @Override
     public void initialize() throws IOException {
         assert moduleDefs==null;    // TODO: is it allowed to call the initialize method multiple times?
         moduleDefs = new HashMap<ModuleId, ModuleDefinition>();
@@ -105,6 +111,9 @@ public abstract class AbstractRepositoryImpl implements Repository {
 
     /**
      * Called from {@link #initialize()} to load all {@link ModuleDefinition}s and libraries defintions
+     * @param moduleDefs
+     * @param libraries
+     * @throws java.io.IOException
      */
     protected abstract void loadModuleDefs(Map<ModuleId, ModuleDefinition> moduleDefs,
                                            List<URI> libraries) throws IOException;
@@ -121,6 +130,8 @@ public abstract class AbstractRepositoryImpl implements Repository {
      *
      * @param jar
      *      Either a jar file or a directory that has the same structure as a jar file. 
+     * @return
+     * @throws java.io.IOException
      */
     protected ModuleDefinition loadJar(File jar) throws IOException {
         Jar jarFile = Jar.create(jar);
@@ -182,12 +193,14 @@ public abstract class AbstractRepositoryImpl implements Repository {
         libraries.remove(location);
     }
 
+    @Override
     public void shutdown() throws IOException {
         // nothing to do
     }
 
+    @Override
     public String toString() {
-        StringBuffer s= new StringBuffer();
+        StringBuilder s= new StringBuilder();
         for (ModuleDefinition moduleDef : findAll()) {
             s.append(moduleDef.getName()).append(":");
         }
@@ -202,6 +215,7 @@ public abstract class AbstractRepositoryImpl implements Repository {
      *
      * @return jar files location stored in this repository.
      */
+    @Override
     public List<URI> getJarLocations() {
         return Collections.unmodifiableList(libraries);
     }
@@ -213,6 +227,7 @@ public abstract class AbstractRepositoryImpl implements Repository {
      * @param listener implementation listening to this repository changes
      * @return true if the listener was added successfully
      */
+    @Override
     public synchronized boolean addListener(RepositoryChangeListener listener) {
         if (listeners==null) {
             listeners = new ArrayList<RepositoryChangeListener>();
@@ -226,6 +241,7 @@ public abstract class AbstractRepositoryImpl implements Repository {
      * @param listener the previously registered listener
      * @return true if the listener was successfully unregistered
      */
+    @Override
     public synchronized boolean removeListener(RepositoryChangeListener listener) {
         if (listeners==null) {
             return false;
@@ -240,6 +256,9 @@ public abstract class AbstractRepositoryImpl implements Repository {
      * @param jar
      *      The module jar file for which {@link ModuleDefinition} will be created.
      *      Never null.
+     * @param attr
+     * @return
+     * @throws java.io.IOException
      */
     protected ModuleDefinition newModuleDefinition(File jar, Attributes attr) throws IOException {
         return new DefaultModuleDefinition(jar, attr);

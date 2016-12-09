@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2010-2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010-2016 Oracle and/or its affiliates. All rights reserved.
  *
  * The contents of this file are subject to the terms of either the GNU
  * General Public License Version 2 only ("GPL") or the Common Development
@@ -70,7 +70,6 @@ public class ClassPathBasedModulesRegistry extends ModulesRegistryImpl {
     final List<ModuleDefinition> moduleDefs = new ArrayList<ModuleDefinition>();
     final List<Module> modules = new ArrayList<Module>();
 
-
     public ClassPathBasedModulesRegistry(ClassLoader singleCL, String classPath) throws IOException {
 
         super(null);
@@ -134,5 +133,4 @@ public class ClassPathBasedModulesRegistry extends ModulesRegistryImpl {
             throws IOException {
         return null;
     }
-
 }

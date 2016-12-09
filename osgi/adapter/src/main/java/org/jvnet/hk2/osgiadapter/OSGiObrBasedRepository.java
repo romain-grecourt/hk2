@@ -45,7 +45,6 @@ import com.sun.enterprise.module.Repository;
 import com.sun.enterprise.module.RepositoryChangeListener;
 import org.apache.felix.bundlerepository.Resource;
 import org.osgi.framework.Version;
-
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -57,7 +56,7 @@ import java.util.List;
  */
 public class OSGiObrBasedRepository implements Repository {
 
-    private org.apache.felix.bundlerepository.Repository obr;
+    private final org.apache.felix.bundlerepository.Repository obr;
 
     public OSGiObrBasedRepository(org.apache.felix.bundlerepository.Repository obr) {
         this.obr = obr;
@@ -143,5 +142,4 @@ public class OSGiObrBasedRepository implements Repository {
     public boolean removeListener(RepositoryChangeListener listener) {
         return false;  // not supported
     }
-
 }

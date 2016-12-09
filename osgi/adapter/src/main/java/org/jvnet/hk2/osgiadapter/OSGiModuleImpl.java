@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2007-2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007-2016 Oracle and/or its affiliates. All rights reserved.
  *
  * The contents of this file are subject to the terms of either the GNU
  * General Public License Version 2 only ("GPL") or the Common Development
@@ -51,27 +51,16 @@ import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.*;
 import java.util.logging.Level;
-
 import org.glassfish.hk2.api.ActiveDescriptor;
-import org.glassfish.hk2.api.Descriptor;
 import org.glassfish.hk2.api.DescriptorFileFinder;
-import org.glassfish.hk2.api.DynamicConfiguration;
-import org.glassfish.hk2.api.DynamicConfigurationService;
-import org.glassfish.hk2.api.Filter;
 import org.glassfish.hk2.api.PopulatorPostProcessor;
 import org.glassfish.hk2.api.ServiceLocator;
-import org.glassfish.hk2.api.ServiceLocatorFactory;
 import org.glassfish.hk2.bootstrap.HK2Populator;
 import org.glassfish.hk2.bootstrap.impl.URLDescriptorFileFinder;
-import org.glassfish.hk2.utilities.Binder;
-import org.glassfish.hk2.utilities.BuilderHelper;
-import org.glassfish.hk2.utilities.DescriptorImpl;
-import org.glassfish.hk2.utilities.ServiceLocatorUtilities;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleException;
 import org.osgi.service.packageadmin.PackageAdmin;
 import org.osgi.service.packageadmin.RequiredBundle;
-
 import com.sun.enterprise.module.LifecyclePolicy;
 import com.sun.enterprise.module.Module;
 import com.sun.enterprise.module.ModuleChangeListener;
@@ -90,11 +79,8 @@ public class OSGiModuleImpl implements Module {
     private volatile Bundle bundle; // made volatile as it is accessed from multiple threads
 
     private ModuleDefinition md;
-
     private AbstractOSGiModulesRegistryImpl registry;
-
     private boolean isTransientlyActive = false;
-
 
     List<ActiveDescriptor> activeDescriptors;
 
@@ -106,10 +92,12 @@ public class OSGiModuleImpl implements Module {
     private LifecyclePolicy lifecyclePolicy;
     private static final Enumeration<URL> EMPTY_URLS = new Enumeration<URL>() {
 
+        @Override
         public boolean hasMoreElements() {
             return false;
         }
 
+        @Override
         public URL nextElement() {
             throw new NoSuchElementException();
         }
@@ -121,18 +109,22 @@ public class OSGiModuleImpl implements Module {
         this.md = md;
     }
 
+    @Override
     public ModuleDefinition getModuleDefinition() {
         return md;
     }
 
+    @Override
     public String getName() {
         return md.getName();
     }
 
+    @Override
     public ModulesRegistry getRegistry() {
         return registry;
     }
 
+    @Override
     public ModuleState getState() {
         // We don't cache the module state locally. Instead we always map
         // the underlying bundle's state to HK2 state. This avoids us
@@ -141,8 +133,7 @@ public class OSGiModuleImpl implements Module {
         return mapBundleStateToModuleState(bundle);
     }
 
-    /* package */ static ModuleState mapBundleStateToModuleState(Bundle bundle)
-    {
+    /* package */ static ModuleState mapBundleStateToModuleState(Bundle bundle) {
         ModuleState state;
         switch (bundle.getState())
         {
@@ -167,12 +158,14 @@ public class OSGiModuleImpl implements Module {
         return state;
     }
 
+    @Override
     public synchronized void resolve() throws ResolveError {
         // Since OSGi bundle does not have a separate resolve method,
         // we use the same implementation as start();
         start();
     }
 
+    @Override
     public synchronized void start() throws ResolveError {
         int state = bundle.getState();
         if (((Bundle.STARTING | Bundle.ACTIVE | Bundle.STOPPING) & state) != 0) {
@@ -196,8 +189,8 @@ public class OSGiModuleImpl implements Module {
             if (sm != null) {
                 try {
                     AccessController.doPrivileged(new PrivilegedExceptionAction(){
-                        public Object run() throws BundleException
-                        {
+                        @Override
+                        public Object run() throws BundleException {
                             bundle.start(Bundle.START_TRANSIENT);
                             return null;
                         }
@@ -235,11 +228,9 @@ public class OSGiModuleImpl implements Module {
         if (lifecyclePolicy!=null) {
             lifecyclePolicy.start(this);
         }
-        return;
     }
 
-    private String toString(int state)
-    {
+    private String toString(int state) {
         String value;
         switch (state) {
             case Bundle.STARTING:
@@ -262,11 +253,12 @@ public class OSGiModuleImpl implements Module {
                 break;
             default:
                 value = "UNKNOWN STATE [" + state + "]";
-                logger.warning("No mapping exist for bundle state " + state);
+                logger.log(Level.WARNING, "No mapping exist for bundle state {0}", state);
         }
         return value;
     }
 
+    @Override
     public synchronized boolean stop() {
         detach();
         // Don't refresh packages, as we are not uninstalling the bundle.
@@ -274,6 +266,7 @@ public class OSGiModuleImpl implements Module {
         return true;
     }
 
+    @Override
     public void detach() {
         if (bundle.getState() != Bundle.ACTIVE) {
             if (logger.isLoggable(Level.FINER)) {
@@ -291,8 +284,7 @@ public class OSGiModuleImpl implements Module {
 
         try {
             bundle.stop();
-            if (logger.isLoggable(Level.FINE))
-            {
+            if (logger.isLoggable(Level.FINE)) {
                 logger.logp(Level.FINE, "OSGiModuleImpl", "detach", "Stopped bundle = {0}", new Object[]{bundle});
             }
 //            bundle.uninstall();
@@ -301,6 +293,7 @@ public class OSGiModuleImpl implements Module {
         }
     }
 
+    @Override
     public void uninstall() {
         // This method is called when the hk2-osgi-adapter module is stopped.
         // During that time, we need to stop all the modules, hence no sticky check is
@@ -314,6 +307,7 @@ public class OSGiModuleImpl implements Module {
         this.registry = null;
     }
 
+    @Override
     public void refresh() {
         URI location = md.getLocations()[0];
         File f = new File(location);
@@ -327,15 +321,18 @@ public class OSGiModuleImpl implements Module {
         }
     }
 
+    @Override
     public ModuleMetadata getMetadata() {
         return md.getMetadata();
     }
 
+    @Override
     public <T> Iterable<Class<? extends T>> getProvidersClass(
             Class<T> serviceClass) {
         return (Iterable)getProvidersClass(serviceClass.getName());
     }
 
+    @Override
     public Iterable<Class> getProvidersClass(String name) {
         List<Class> r = new ArrayList<Class>();
         for( String provider : getMetadata().getEntry(name).providerNames) {
@@ -348,19 +345,23 @@ public class OSGiModuleImpl implements Module {
         return r;
     }
 
+    @Override
     public boolean hasProvider(Class serviceClass) {
         String name = serviceClass.getName();
         return getMetadata().getEntry(name).hasProvider();
     }
 
+    @Override
     public void addListener(ModuleChangeListener listener) {
         registry.addModuleChangeListener(listener, this);
     }
 
+    @Override
     public void removeListener(ModuleChangeListener listener) {
         registry.removeModuleChangeListener(listener);
     }
 
+    @Override
     public void dumpState(PrintStream writer) {
         writer.print(toString());
     }
@@ -373,7 +374,6 @@ public class OSGiModuleImpl implements Module {
 
         DescriptorFileFinder dff = null;
 
-
         final String path = "META-INF/hk2-locator/" + name;
         URL entry = bundle.getEntry(path);
 
@@ -381,19 +381,15 @@ public class OSGiModuleImpl implements Module {
             dff = new URLDescriptorFileFinder(entry);
         }
 
-        
         if (dff != null) {
-
-        	final OSGiModuleImpl module = this;
-
+            final OSGiModuleImpl module = this;
             ArrayList<PopulatorPostProcessor> allPostProcessors = new ArrayList<PopulatorPostProcessor>();
             allPostProcessors.add(new OsgiPopulatorPostProcessor(module));
             if (populatorPostProcessors != null) {
               allPostProcessors.addAll(populatorPostProcessors);
             }
-    	    this.activeDescriptors = HK2Populator.populate(serviceLocator, dff, allPostProcessors);
+            this.activeDescriptors = HK2Populator.populate(serviceLocator, dff, allPostProcessors);
         }
-        
         return this.activeDescriptors;
     }
 
@@ -402,12 +398,14 @@ public class OSGiModuleImpl implements Module {
      */
     private ClassLoader getParentLoader() {
         return AccessController.doPrivileged(new PrivilegedAction<ClassLoader>() {
+            @Override
             public ClassLoader run() {
                 return Bundle.class.getClassLoader();
             }
         });
     }
 
+    @Override
     public ClassLoader getClassLoader() {
         /*
          * This is a delegating class loader.
@@ -427,23 +425,20 @@ public class OSGiModuleImpl implements Module {
                 try {
                     //doprivileged needed for running with SecurityManager
                     return AccessController.doPrivileged(new PrivilegedExceptionAction<Class>() {
+                        @Override
                         public Class run() throws ClassNotFoundException {
-                        	
-                        	Class c = bundle.loadClass(name);
-                         
-                            return c;                         
+                            Class c = bundle.loadClass(name);
+                            return c;
                         }
                     });
                 } catch (PrivilegedActionException e) {
                     throw (ClassNotFoundException)e.getException();
                 }
-
             }
 
             @Override
             public URL getResource(String name) {
                 URL result = bundle.getResource(name);
-                               
                 if (result != null) return result;
                 return null;
             }
@@ -456,7 +451,6 @@ public class OSGiModuleImpl implements Module {
                     // expects us to return an empty enumeration.
                     resources = EMPTY_URLS;
                 }
-
                 return resources;
             }
 
@@ -467,22 +461,27 @@ public class OSGiModuleImpl implements Module {
         };
     }
 
+    @Override
     public void addImport(Module module) {
         throw new UnsupportedOperationException("This method can't be implemented in OSGi environment");
     }
 
+    @Override
     public Module addImport(ModuleDependency dependency) {
         throw new UnsupportedOperationException("This method can't be implemented in OSGi environment");
     }
 
+    @Override
     public boolean isSticky() {
         return true; // all modules are always sticky
     }
 
+    @Override
     public void setSticky(boolean sticky) {
         // NOOP: It's not required in OSGi.
     }
 
+    @Override
     public List<Module> getImports() {
         List<Module> result = new ArrayList<Module>();
         RequiredBundle[] requiredBundles =
@@ -503,6 +502,7 @@ public class OSGiModuleImpl implements Module {
         return result;
     }
 
+    @Override
     public boolean isShared() {
         return true; // all OSGi bundles are always shared.
     }
@@ -515,6 +515,7 @@ public class OSGiModuleImpl implements Module {
         return isTransientlyActive;
     }
 
+    @Override
     public String toString() {
         return "OSGiModuleImpl:: Bundle = [" + bundle
                 + "], State = [" + getState() + "]";
@@ -550,6 +551,4 @@ public class OSGiModuleImpl implements Module {
                     new Object[]{this, bundle});
         }
     }
-    
 }
-

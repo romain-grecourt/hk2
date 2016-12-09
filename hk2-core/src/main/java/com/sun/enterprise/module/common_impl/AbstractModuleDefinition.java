@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2007-2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
  *
  * The contents of this file are subject to the terms of either the GNU
  * General Public License Version 2 only ("GPL") or the Common Development
@@ -38,35 +38,72 @@
  * holder.
  */
 
-package org.jvnet.hk2.osgiadapter;
+package com.sun.enterprise.module.common_impl;
 
-import com.sun.enterprise.module.common_impl.ModuleId;
 import com.sun.enterprise.module.ModuleDefinition;
-import org.osgi.framework.Bundle;
+import com.sun.enterprise.module.ModuleDependency;
+import com.sun.enterprise.module.ModuleMetadata;
+import java.net.URI;
+import java.util.jar.Manifest;
 
 /**
- * @author Sanjeeb.Sahoo@Sun.COM
+ *
+ * @author rgrecour
  */
-/* package */ class OSGiModuleId extends ModuleId {
-    OSGiModuleId(String name, String version) {
-        super(name, version);
+public abstract class AbstractModuleDefinition implements ModuleDefinition {
+
+    protected String name;
+
+    protected AbstractModuleDefinition(){
+        
     }
 
-    OSGiModuleId(ModuleDefinition md) {
-        super(md);
+    public AbstractModuleDefinition( String name) {
+        this.name = name;
     }
 
-    OSGiModuleId(Bundle b) {
-        String _name = b.getSymbolicName();
-        // R3 bundles may not have any name.
-        // So, we use location in such cases. We encounter this
-        // problem when user has dropped some plain jars or R3 bundles
-        // in modules dir. If you choose to use a different name,
-        // please also change the code in OSGiModuleDefinition class which makes
-        // similar assumption.
-        if (_name == null) _name = b.getLocation();
-                
-        String _version = b.getVersion().toString(); // (String) b.getHeaders().get(Constants.BUNDLE_VERSION);
-        init(_name, _version);
+    @Override
+    public String getName() {
+        return name;
+    }
+
+    @Override
+    public String[] getPublicInterfaces() {
+        return new String[0];
+    }
+
+    @Override
+    public ModuleDependency[] getDependencies() {
+        return new ModuleDependency[0];
+    }
+
+    @Override
+    public URI[] getLocations() {
+        return null;
+    }
+
+    @Override
+    public String getVersion() {
+        return "";
+    }
+
+    @Override
+    public String getImportPolicyClassName() {
+        return "";
+    }
+
+    @Override
+    public String getLifecyclePolicyClassName() {
+        return "";
+    }
+
+    @Override
+    public Manifest getManifest() {
+        return null;
+    }
+
+    @Override
+    public ModuleMetadata getMetadata() {
+        return null;
     }
 }

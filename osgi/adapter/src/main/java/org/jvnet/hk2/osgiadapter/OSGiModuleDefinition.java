@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2007-2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007-2016 Oracle and/or its affiliates. All rights reserved.
  *
  * The contents of this file are subject to the terms of either the GNU
  * General Public License Version 2 only ("GPL") or the Common Development
@@ -55,14 +55,12 @@ import java.util.StringTokenizer;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 import java.util.logging.Level;
-
 import org.glassfish.hk2.api.Descriptor;
 import org.glassfish.hk2.utilities.DescriptorImpl;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.BundleReference;
 import org.osgi.framework.Constants;
-
 import com.sun.enterprise.module.ManifestConstants;
 import com.sun.enterprise.module.ModuleDefinition;
 import com.sun.enterprise.module.ModuleDependency;
@@ -131,10 +129,12 @@ public class OSGiModuleDefinition implements ModuleDefinition, Serializable {
         }
     }
 
+    @Override
     public String getName() {
         return name;
     }
 
+    @Override
     public String[] getPublicInterfaces() {
         throw new UnsupportedOperationException(
                 "This method should not be called in OSGi environment, " +
@@ -144,12 +144,13 @@ public class OSGiModuleDefinition implements ModuleDefinition, Serializable {
     /**
      * @return List of bundles on which this bundle depends on using Require-Bundle
      */
+    @Override
     public ModuleDependency[] getDependencies() {
         List<ModuleDependency> mds = new ArrayList<ModuleDependency>();
         String requiredBundles =
                 getManifest().getMainAttributes().getValue(Constants.REQUIRE_BUNDLE);
         if (requiredBundles != null) {
-            Logger.logger.log(Level.INFO, name + " -> " + requiredBundles);
+            Logger.logger.log(Level.INFO, "{0} -> {1}", new Object[]{name, requiredBundles});
             // The string looks like
             // Require-Bundle: b1; version="[1.0, 2.0)", b2, b3;visbility:=reexport; version="1.0",...
             // First remove the regions that appear between a pair of quotes (""), as that
@@ -182,28 +183,34 @@ public class OSGiModuleDefinition implements ModuleDefinition, Serializable {
         return mds.toArray(new ModuleDependency[mds.size()]);
     }
 
+    @Override
     public URI[] getLocations() {
         return new URI[]{location};
     }
 
+    @Override
     public String getVersion() {
         return version;
     }
 
+    @Override
     public String getImportPolicyClassName() {
         throw new UnsupportedOperationException(
                 "This method should not be called in OSGi environment, " +
                         "hence not supported");
     }
 
+    @Override
     public String getLifecyclePolicyClassName() {
         return lifecyclePolicyClassName;
     }
 
+    @Override
     public Manifest getManifest() {
         return manifest;
     }
 
+    @Override
     public ModuleMetadata getMetadata() {
         return metadata;
     }
@@ -228,10 +235,12 @@ public class OSGiModuleDefinition implements ModuleDefinition, Serializable {
             m = new BundleManifest(b);
         }
 
+        @Override
         public Manifest getManifest() throws IOException {
             return m;
         }
 
+        @Override
         public void loadMetadata(ModuleMetadata result) {
             parseServiceDescriptors(result);
             parseDescriptors(result);
@@ -272,7 +281,9 @@ public class OSGiModuleDefinition implements ModuleDefinition, Serializable {
          */
         void parseDescriptors(ModuleMetadata result) {
 
-            if (b.getEntry(HK2_DESCRIPTOR_LOCATION) == null) return;
+            if (b.getEntry(HK2_DESCRIPTOR_LOCATION) == null) {
+                return;
+            }
 
             Enumeration<String> entries;
             entries = b.getEntryPaths(HK2_DESCRIPTOR_LOCATION);
@@ -280,29 +291,19 @@ public class OSGiModuleDefinition implements ModuleDefinition, Serializable {
             if (entries != null) {
                 while (entries.hasMoreElements()) {
                     String entry = entries.nextElement();
-                    String serviceLocatorName = entry.substring(HK2_DESCRIPTOR_LOCATION.length()+1);
-
+                    String serviceLocatorName = entry.substring(HK2_DESCRIPTOR_LOCATION.length() + 1);
                     final URL url = b.getEntry(entry);
-
                     InputStream is = null;
-
                     if (url != null) {
-
                         List<Descriptor> descriptors = new ArrayList<Descriptor>();
-
                         try {
                             is = url.openStream();
-
                             BufferedReader br = new BufferedReader(new InputStreamReader(is));
-
                             try {
-                                boolean readOne = false;
-
+                                boolean readOne;
                                 do {
                                     DescriptorImpl descriptorImpl = new DescriptorImpl();
-
                                     readOne = descriptorImpl.readObject(br);
-
                                     if (readOne) {
                                         descriptors.add(descriptorImpl);
                                     }
@@ -313,7 +314,6 @@ public class OSGiModuleDefinition implements ModuleDefinition, Serializable {
                             }
 
                             result.addDescriptors(serviceLocatorName, descriptors);
-
                         } catch (IOException e) {
                             LogHelper.getDefaultLogger().log(Level.SEVERE,
                                     "Error reading descriptor in " + b.getLocation(), e);
@@ -321,16 +321,16 @@ public class OSGiModuleDefinition implements ModuleDefinition, Serializable {
                             if (is != null) {
                                 try {
                                     is.close();
-                                } catch (IOException e) {}
+                                } catch (IOException e) {
+                                }
                             }
                         }
+                    }
                 }
-
-            }
             }
         }
 
-
+        @Override
         public String getBaseName() {
             throw new UnsupportedOperationException("Method not implemented");
         }
@@ -368,6 +368,7 @@ public class OSGiModuleDefinition implements ModuleDefinition, Serializable {
                 ClassLoader cl;
                 if (System.getSecurityManager() != null) {
                     cl = AccessController.doPrivileged(new PrivilegedAction<ClassLoader>() {
+                        @Override
                         public ClassLoader run() {
                             return getClass().getClassLoader();
                         }
@@ -377,19 +378,16 @@ public class OSGiModuleDefinition implements ModuleDefinition, Serializable {
                 }
 
                 Bundle clBundle = ((BundleReference)cl).getBundle();
-
                 if (clBundle == null) {
                     throw new RuntimeException(("Cannot resolve classLoader " + cl) + " bundle");
-
                 }
-                BundleContext bctx = clBundle.getBundleContext();
 
+                BundleContext bctx = clBundle.getBundleContext();
                 if (bctx == null) {
                     throw new RuntimeException("Cannot obtain BundleContext");
                 }
 
                 Bundle bundle = bctx.getBundle(bundleId);
-
                 if (bundle == null) {
                    throw new RuntimeException("Cannot obtain bundle " + bundleId);
                 }
@@ -402,12 +400,9 @@ public class OSGiModuleDefinition implements ModuleDefinition, Serializable {
 
     private static class SerializableManifest extends Manifest implements Serializable {
 
-        private SerializableManifest()
-        {
-        }
+        private SerializableManifest() { }
 
-        private SerializableManifest(Manifest man)
-        {
+        private SerializableManifest(Manifest man) {
             super(man);
         }
 
@@ -419,5 +414,4 @@ public class OSGiModuleDefinition implements ModuleDefinition, Serializable {
             read(in);
         }
     }
-
 }

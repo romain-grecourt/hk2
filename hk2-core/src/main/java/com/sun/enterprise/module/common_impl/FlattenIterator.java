@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2007-2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007-2016 Oracle and/or its affiliates. All rights reserved.
  *
  * The contents of this file are subject to the terms of either the GNU
  * General Public License Version 2 only ("GPL") or the Common Development
@@ -48,10 +48,11 @@ import java.util.NoSuchElementException;
 /**
  * {@link Iterator} implementation that works like Lisp "flatten" function.
  * @author Kohsuke Kawaguchi
+ * @param <T>
  */
 public class FlattenIterator<T> implements Iterator<T> {
     private Iterator<? extends T> current;
-    private Iterator<? extends Iterator<? extends T>> source;
+    private final Iterator<? extends Iterator<? extends T>> source;
 
     public FlattenIterator(Iterator<? extends Iterator<? extends T>> source) {
         this.source = source;
@@ -62,6 +63,7 @@ public class FlattenIterator<T> implements Iterator<T> {
         }
     }
 
+    @Override
     public boolean hasNext() {
         while(!current.hasNext() && source.hasNext()) {
             current = source.next();
@@ -69,6 +71,7 @@ public class FlattenIterator<T> implements Iterator<T> {
         return current.hasNext();
     }
 
+    @Override
     public T next() {
         if(hasNext())
             return current.next();
@@ -76,6 +79,7 @@ public class FlattenIterator<T> implements Iterator<T> {
             throw new NoSuchElementException();
     }
 
+    @Override
     public void remove() {
         throw new UnsupportedOperationException();
     }
